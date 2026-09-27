@@ -49,6 +49,11 @@ default = ["ort/std", "ort/ndarray", "ort/tracing", "ort/download-binaries", "or
 # uses (init + Session + inputs + run). The CI links the official 1.23.0
 # dylib for this target (see .github/workflows/ci.yml).
 mac-x64-legacy = ["ort/std", "ort/ndarray", "ort/tracing", "ort/copy-dylibs", "ort/api-23", "ort/tls-native"]
+# win-cpu: ort-sys ships no plain CPU build for x86_64-pc-windows-msvc (only
+# directml/webgpu), and the DirectML build answers differently - 3/10 on the
+# quick-check where Linux scored 10/10. This links Microsoft's official CPU
+# build from ORT_LIB_LOCATION instead of downloading a prebuilt.
+win-cpu = ["ort/std", "ort/ndarray", "ort/tracing", "ort/api-27"]
 
 [build-dependencies]
 cc = "1"

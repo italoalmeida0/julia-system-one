@@ -60,6 +60,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: native/julia-serve }
 
+      - name: Provide the official CPU ORT for win32-x64
+        # ort-sys ships only directml/webgpu builds for x86_64-pc-windows-msvc;
+        # there is no plain CPU variant. The DirectML build produced different
+        # answers (3/10 on the quick-check against 10/10 on Linux), so this
+        # uses Microsoft's official CPU build instead.
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sL -o ort.zip "https://github.com/microsoft/onnxruntime/releases/download/v1.28.0/onnxruntime-win-x64-1.28.0.zip"
+          mkdir -p "$GITHUB_WORKSPACE/ort-libs"
+          unzip -o -q ort.zip -d ort-extract
+          cp ort-extract/onnxruntime-win-x64-1.28.0/lib/*.lib "$GITHUB_WORKSPACE/ort-libs/" 2>/dev/null || true
+          cp ort-extract/onnxruntime-win-x64-1.28.0/lib/*.dll "$GITHUB_WORKSPACE/ort-libs/" 2>/dev/null || true
+          ls "$GITHUB_WORKSPACE/ort-libs" | head
+
       - name: Provide ORT libs for mac-x64 (no ort-sys prebuilt)
         if: matrix.target == 'x86_64-apple-darwin'
         shell: bash
@@ -78,6 +94,10 @@ jobs:
             export ORT_LIB_PATH="$GITHUB_WORKSPACE/ort-libs"
             export ORT_PREFER_DYNAMIC_LINK=1
             cargo build --release --no-default-features --features mac-x64-legacy --target ${{ matrix.target }} --manifest-path native/julia-serve/Cargo.toml
+          elif [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            export ORT_LIB_LOCATION="$GITHUB_WORKSPACE/ort-libs"
+            export ORT_STRATEGY=system
+            cargo build --release --no-default-features --features win-cpu --target ${{ matrix.target }} --manifest-path native/julia-serve/Cargo.toml
           else
             cargo build --release --target ${{ matrix.target }} --manifest-path native/julia-serve/Cargo.toml
           fi
