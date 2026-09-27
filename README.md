@@ -368,6 +368,25 @@ That is a small fixture, not a benchmark, and the model card's own numbers come
 from a much larger set. Treat it as a caution rather than a verdict: measure on
 your own data before relying on `score` or `noul`.
 
+### Write the options carefully
+
+The answer depends on how the options are worded, not only on the input. The
+same message, with the same three labels, flips between two answers depending
+on how much detail each option carries:
+
+```js
+criteria: { billing: 'refunds', tech: 'bugs', sales: 'upgrades' }
+// "We were billed twice on the March invoice and want a refund." -> tech
+
+criteria: { billing: 'refunds and invoices', tech: 'bugs and crashes', sales: 'upgrades and contracts' }
+// the same input                                            -> billing
+```
+
+Both of those come back from the reference implementation too, so it is the
+model rather than the runtime. The model card says the same thing: keep the
+options clear and distinct, and evaluate the exact questions and options you
+plan to use — the option text is part of the prompt.
+
 ## 📊 Performance
 
 Measured on real hardware, on every platform we ship a binary for, with the
