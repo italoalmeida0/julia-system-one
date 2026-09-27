@@ -2,6 +2,38 @@
 
 All notable changes to `julia-system-one` are documented here.
 
+## [1.0.3] — 2026-09-27
+
+### Fixed: the package listed 13 model chunks for a model that ships 6
+
+`bun x julia-system-one` printed seven 404s before starting:
+
+```
+warn: GET https://registry.npmjs.org/@sys-one%2fjulia-model-chunk-10 - 404
+... chunk-06 through chunk-12
+```
+
+package.json still carried the chunk dependencies of the checkpoint this
+runtime was forked from. Those packages will never be published, so every
+install asked for seven things that do not exist. The model assembled anyway
+from the six real chunks, which is why it went unnoticed.
+
+`set-version` now drops any chunk dependency past the manifest's `chunkCount`,
+so this cannot come back when the checkpoint changes size.
+
+### Documented: what the model actually answers
+
+The README now reports the upstream evaluation fixture's result alongside the
+model card's numbers — 6 of 12 cases, against 9 for the checkpoint this runtime
+was first built for — and says plainly which parts are weak (`score` returns
+values near the middle of the scale; `noul` leans `true`). The same answers
+come back from the reference implementation in Python, so it is the model
+rather than the runtime.
+
+It also documents that the answer depends on how the options are worded: the
+same message with the same labels flips between two answers depending on the
+detail each option carries.
+
 ## [1.0.2] — 2026-09-27
 
 ### Added: measured performance, and a model identity in /health
