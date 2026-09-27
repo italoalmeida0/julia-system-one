@@ -64,7 +64,7 @@ struct AppState {
 /// Rewrite the symbolic dimensions of the ONNX graph to concrete values.
 ///
 /// The Julia-1 export leaves dimensions as expressions - "6*batch",
-/// "batch*tokens", "(tokens//batch)" - where the Laya checkpoints had plain
+/// "batch*tokens", "(tokens//batch)" - where the earlier checkpoints had plain
 /// names. ONNX Runtime accepts those symbolically and resolves them its own
 /// way, which turned out to disagree with the wasm (tract) path on the same
 /// input: same model, same question, different answer with high confidence on

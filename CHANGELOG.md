@@ -35,14 +35,16 @@ browser with no Python in the loop.
 
 ### What is specific to Julia-1
 
-- The tokenizer is byte-for-byte the same file as the Laya checkpoint's
-  (sha256 identical), so the BPE implementation needed no changes.
+- The tokenizer is byte-for-byte the same file as the checkpoint this runtime
+  was first built for (sha256 identical), so the BPE implementation needed no
+  changes.
 - The ONNX contract is the same five inputs and one `logits` output.
 - The exported graph leaves its dimensions as **expressions** — `6*batch`,
-  `batch*tokens`, `(tokens//batch)` — where the Laya checkpoints had concrete
-  names. Each is resolved with batch fixed at 1; an unrecognised expression is
-  left alone deliberately, because a wrong substitution would produce wrong
-  numbers silently while an unresolved one fails loudly at plan time.
+  `batch*tokens`, `(tokens//batch)` — where the earlier checkpoints had
+  concrete names. Each is resolved with batch fixed at 1; an unrecognised
+  expression is left alone deliberately, because a wrong substitution would
+  produce wrong numbers silently while an unresolved one fails loudly at plan
+  time.
 
 ### Known differences
 

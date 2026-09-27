@@ -176,4 +176,6 @@
    END OF TERMS AND CONDITIONS
 
    Copyright 2026 Italo Almeida (https://github.com/italoalmeida0)
-   Based on Julia (https://github.com/NandhaKishorM/julia), Copyright 2026 Convai Innovations
+
+   The Julia-1 model this package runs is Copyright 2026 Supersonic Labs
+   (https://huggingface.co/SupersonicLabs/Julia-1), licensed Apache-2.0.

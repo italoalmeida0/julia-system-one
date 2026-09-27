@@ -12,10 +12,9 @@ Runs entirely on your machine. No Python, no PyTorch, no API keys, no cloud
 calls at inference time. One `npm install` and it works.
 
 > **The model is [Julia-1](https://huggingface.co/SupersonicLabs/Julia-1) by
-> [Supersonic Labs](https://huggingface.co/SupersonicLabs); the typed-question
-> format comes from [Laya](https://github.com/NandhaKishorM/laya).** This
-> package makes it run in Node.js, Bun and the browser with no Python in the
-> loop. See [Credits](#-credits).
+> [Supersonic Labs](https://huggingface.co/SupersonicLabs).** This package
+> makes it run in Node.js, Bun and the browser with no Python in the loop.
+> See [Credits](#-credits).
 
 ---
 
@@ -388,9 +387,10 @@ latency. Run `npm run bench` to measure it.
 | 4,000 | 9.2 s *(truncated)* | 21.3 s |
 | 8,000 | 9.2 s *(truncated)* | 190 s |
 
-- **Accuracy degrades with length.** That measurement is from the Laya
-  project, not from Julia-1 — check your own data before relying on long
-  documents. Long-document accuracy is not something to assume.
+- **Accuracy degrades with length.** That measurement is from the checkpoint
+  this runtime was first built for, not from Julia-1 — check your own data
+  before relying on long documents. Long-document accuracy is not something to
+  assume.
 - **Cost grows steeply.** Past ~2,000 tokens the time climbs faster than the
   input does (attention is quadratic). 8,000 tokens is minutes, not seconds,
   on a CPU. If you routinely handle documents that long, truncate them
@@ -482,28 +482,19 @@ musl — and runs a real inference.
 
 ## 🙏 Credits
 
-Two projects, and both deserve the credit.
-
-**[Supersonic Labs](https://huggingface.co/SupersonicLabs) made the model.**
-Julia-1 is theirs: the checkpoint, the decision head, the training, the
-evaluation. This package only runs it where Python is not an option.
-
-**[Laya](https://github.com/NandhaKishorM/laya) by
-[Convai Innovations](https://huggingface.co/convaiinnovations) defined the
-format.** The typed-question protocol, the sequence layout and the runtime
-this package is built on are theirs — Julia-1 answers the same questions in
-the same shape, which is why one runtime serves both.
+**The model is [Julia-1](https://huggingface.co/SupersonicLabs/Julia-1) by
+[Supersonic Labs](https://huggingface.co/SupersonicLabs).** The checkpoint, the
+decision head, the training and the evaluation are theirs. This package only
+makes it run where Python is not an option — Node.js, Bun and the browser.
 
 | | |
 | :--- | :--- |
 | **Model** | [`SupersonicLabs/Julia-1`](https://huggingface.co/SupersonicLabs/Julia-1) — 144.3M parameters, a fine-tune of [`jhu-clsp/mmBERT-small`](https://huggingface.co/jhu-clsp/mmBERT-small) |
 | **ONNX build** | [`SupersonicLabs/Julia-1-ONNX`](https://huggingface.co/SupersonicLabs/Julia-1-ONNX) |
-| **Decision protocol** | [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya) · [Convai Innovations](https://huggingface.co/convaiinnovations) |
 | **Encoder** | [jhu-clsp/mmBERT-small](https://huggingface.co/jhu-clsp/mmBERT-small) (JHU CLSP) |
 | **License** | Apache-2.0, for the model and for this package |
 
-If you find this useful, the credit belongs upstream — star the model and the
-project it borrowed its format from.
+If you find this useful, the credit belongs upstream — star the model.
 
 ## 📄 License
 
@@ -513,5 +504,3 @@ project it borrowed its format from.
   [julia-system-one](https://github.com/italoalmeida0/julia-system-one)
 - **Model:** Supersonic Labs —
   [SupersonicLabs/Julia-1](https://huggingface.co/SupersonicLabs/Julia-1)
-- **Decision format:** Convai Innovations —
-  [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya)

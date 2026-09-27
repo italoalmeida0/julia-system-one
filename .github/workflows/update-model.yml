@@ -9,8 +9,8 @@ name: update model
 # artifact. Publishing it is still a deliberate local step, like everything
 # else here.
 #
-#   gh workflow run update-model.yml -f model=convaiinnovations/julia-1
-#   gh workflow run update-model.yml -f model=convaiinnovations/julia-1 -f max-len=8192
+#   gh workflow run update-model.yml -f model=SupersonicLabs/Julia-1
+#   gh workflow run update-model.yml -f model=SupersonicLabs/Julia-1 -f max-len=8192
 #
 # The export needs PyTorch and the upstream package, so it runs on a runner
 # with room for a few GB rather than on your machine.
@@ -21,7 +21,7 @@ on:
       model:
         description: 'Hugging Face model id or path to export'
         required: true
-        default: 'convaiinnovations/julia-1'
+        default: 'SupersonicLabs/Julia-1'
       max-len:
         description: 'Context length to build the graph for (1024, 8192, ...)'
         required: false

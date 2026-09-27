@@ -19,9 +19,9 @@ What it does, in order:
   5. writes the tokenizer files and a manifest with the checksums
 
 Usage:
-    python tools/export-model.py --model convaiinnovations/julia-1
+    python tools/export-model.py --model SupersonicLabs/Julia-1
     python tools/export-model.py --model ./local-checkpoint --skip-quantize
-    python tools/export-model.py --model convaiinnovations/julia-1 \
+    python tools/export-model.py --model SupersonicLabs/Julia-1 \
         --out-dir /tmp/newmodel --max-len 8192
 
 Requirements (a separate environment; not needed to *use* the package):
@@ -238,7 +238,7 @@ def write_manifest(out_dir, model_path, source, max_len):
 
 def main():
     ap = argparse.ArgumentParser(description="Export the upstream Julia checkpoint to ONNX/INT8")
-    ap.add_argument("--model", default="convaiinnovations/julia-1",
+    ap.add_argument("--model", default="SupersonicLabs/Julia-1",
                     help="Hugging Face id or local checkpoint path")
     ap.add_argument("--out-dir", default="models",
                     help="where model.onnx and the tokenizer files go")
