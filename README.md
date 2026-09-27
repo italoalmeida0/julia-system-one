@@ -345,24 +345,46 @@ time. Switch with `--backend wasm` or `JULIA_BACKEND=wasm`.
 ## 📊 Performance
 
 Julia-1 is a 144.3M-parameter ModernBERT encoder — less than half of the
-mmBERT-base checkpoints this runtime was first built for, so it should be
-correspondingly faster on the same hardware.
+mmBERT-base checkpoints this runtime was first built for, and correspondingly
+faster.
 
-**These numbers have not been measured yet.** The table below is a placeholder
-until the first benchmark run on each platform (`npm run bench`); publishing
-guessed figures would be worse than publishing none.
+Measured through the published package on shared GitHub runners, one question
+per call, `native` backend:
 
-| Platform | Load | First answer | Warm (4 q/call) | Per question |
-| :--- | ---: | ---: | ---: | ---: |
-| *(to be measured)* | — | — | — | — |
+| Platform | 10 questions | Per question |
+| :--- | ---: | ---: |
+| Linux arm64 | 2.2 s | 220 ms |
+| Linux x64 | 2.6 s | 260 ms |
+| Windows x64 | 3.4 s | 340 ms |
+| Windows arm64 | 3.4 s | 340 ms |
+| macOS arm64 | 3.5 s | 350 ms |
+| macOS x64 | 5.9 s | 590 ms |
+
+Those are cold-start numbers on a shared runner, including loading the model
+into memory — the worst case, and the one a CI job sees. On a warm engine the
+same question costs far less; on one Windows arm64 machine (Snapdragon X), for
+example:
+
+| | |
+| :--- | ---: |
+| load the model | 1.8 s |
+| first answer (includes warmup) | 81 ms |
+| warm, per question | 18 ms |
+
+Run `npm run bench` to measure your own machine. Shared runners vary by ~20%
+between runs, so treat these as orders of magnitude.
+
+The `wasm` backend is much slower — seconds per question rather than
+milliseconds. It exists so browsers and unusual platforms work at all, not for
+throughput.
 
 ### Long inputs
 
 The model reads up to **8,192 tokens**, but it ships with a conservative
 **2,048-token** budget so it stays usable on weak machines. The budget is a
-cap, not a cost: **short inputs are unaffected by raising it** — a 74-token
-question answers in ~90 ms whatever the limit is, because the work follows the
-input's real length.
+cap, not a cost: **short inputs are unaffected by raising it** — a short
+question costs the same whatever the limit is, because the work follows the
+input's real length, not the budget.
 
 Raise it when your inputs are long documents:
 
@@ -374,32 +396,24 @@ JULIA_MAX_LEN=8192 npx julia-system-one --port 8080
 const julia = await Julia.load({ maxLen: 8192 });
 ```
 
-**Not yet measured for this model.** The numbers below are from the
-multilingual checkpoint this runtime was first built for, and Julia-1 is a
-different encoder — treat them as the shape of the curve, not as this model's
-latency. Run `npm run bench` to measure it.
+Measured on one Windows arm64 machine (Snapdragon X), `native` backend, warm
+engine:
 
-| tokens | default (2048) | `maxLen: 8192` |
-| ---: | ---: | ---: |
-| 74 | 88 ms | 88 ms |
-| 1,000 | 0.9 s | 0.9 s |
-| 2,000 | 6.4 s | 6.4 s |
-| 4,000 | 9.2 s *(truncated)* | 21.3 s |
-| 8,000 | 9.2 s *(truncated)* | 190 s |
+| tokens | time |
+| ---: | ---: |
+| 1,000 | 0.27 s |
+| 2,000 | 1.2 s |
+| 4,000 | 5.4 s |
 
-- **Accuracy degrades with length.** That measurement is from the checkpoint
-  this runtime was first built for, not from Julia-1 — check your own data
-  before relying on long documents. Long-document accuracy is not something to
-  assume.
-- **Cost grows steeply.** Past ~2,000 tokens the time climbs faster than the
-  input does (attention is quadratic). 8,000 tokens is minutes, not seconds,
-  on a CPU. If you routinely handle documents that long, truncate them
-  yourself to the part that matters, or run the upstream Python package on a
-  GPU.
+Cost grows faster than the input — attention is quadratic — so 8,000 tokens is
+tens of seconds, not milliseconds. If you routinely handle documents that long,
+truncate them yourself to the part that matters, or run the upstream Python
+package on a GPU.
 
 Truncation is the real risk of leaving it at the default: a long message gets
-cut off and the answer can be wrong rather than slow. On a ~3,000-token input
-the shipped default answered `sales` where the full text answers `billing`.
+cut off and the answer can be wrong rather than slow — with a 1,024-token
+budget a ~3,000-token input was misread in testing. Long-document accuracy for
+this model has not been measured; check your own data before relying on it.
 
 ---
 

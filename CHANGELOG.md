@@ -2,6 +2,40 @@
 
 All notable changes to `julia-system-one` are documented here.
 
+## [1.0.2] — 2026-09-27
+
+### Added: measured performance, and a model identity in /health
+
+- **Benchmarks for this model**, measured through the published package on
+  every platform we ship a binary for, plus warm-engine numbers from one
+  machine. The README previously carried the other checkpoint's figures.
+- **`/health` reports which model is loaded**: the encoder named by
+  `rl_agent_config.json` and the sha256 of the model file. It used to return a
+  hardcoded name, which proves nothing — a deployment could be serving a
+  different checkpoint and it would still say so.
+
+### Fixed: the published-package check
+
+`verify-published.yml` failed on all eight platforms, for three reasons that
+had nothing to do with the package:
+
+- the chunk count was hardcoded to 13 (this model ships 6);
+- it read the manifest from the repository, but the job installs from the
+  registry and never checks the repository out;
+- it gated on exact answer labels. This model is INT8 with dynamic
+  quantization, and ONNX Runtime's kernels differ per architecture: the same
+  commit scored 5/10 in one run and 8/10 in the next, on the same platform. It
+  now asserts what a build check can assert — the binary starts, loads the
+  model, answers every prompt, returns a valid label with probabilities
+  summing to 1, and repeats an answer when a prompt is repeated.
+
+## [1.0.1] — 2026-09-27
+
+### Fixed: /health returned a hardcoded model name
+
+It now reports the encoder and the model's sha256, so a deployment can confirm
+which checkpoint it serves. 1.0.0 is on the registry without this.
+
 ## [1.0.0] — 2026-09-27
 
 First release: the Julia-1 decision model, running in Node.js, Bun and the
