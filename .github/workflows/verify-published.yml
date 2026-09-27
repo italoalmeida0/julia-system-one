@@ -170,6 +170,50 @@ jobs:
           JS
           node check.mjs
 
+      - name: Benchmark, in the same shape as the README table
+        # Measures the columns the README reports: load, first answer, warm
+        # with four questions per call, and per question. Running it here means
+        # the numbers come from real hardware per platform, not one machine.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verify
+          cat > bench.mjs <<'JS'
+          import { Julia } from 'julia-system-one';
+
+          const q = { department: { type: 'choice', instructions: 'Which department should handle this?',
+            criteria: { billing: 'refunds and invoices', tech: 'bugs and crashes', sales: 'upgrades and contracts' } } };
+          const state = 'We were billed twice on the March invoice and want a refund.';
+
+          const t0 = performance.now();
+          const julia = await Julia.load({ backend: 'native' });
+          const load = performance.now() - t0;
+
+          const t1 = performance.now();
+          await julia.predict(state, q);
+          const first = performance.now() - t1;
+
+          // warm: one question per call
+          await julia.predict(state, q);
+          const t2 = performance.now();
+          for (let i = 0; i < 10; i++) await julia.predict(state, q);
+          const perQuestion = (performance.now() - t2) / 10;
+
+          // warm: four questions in one call
+          const four = { ...q,
+            urgency: { type: 'score', instructions: 'How urgent?', criteria: ['low', 'mid', 'high'] },
+            churn: { type: 'noul', instructions: 'Churn risk?', threshold: 0.5 },
+            refund: { type: 'noul', instructions: 'Refund requested?', threshold: 0.5 } };
+          await julia.predict(state, four);
+          const t3 = performance.now();
+          for (let i = 0; i < 10; i++) await julia.predict(state, four);
+          const fourPerCall = (performance.now() - t3) / 10;
+
+          await julia.close();
+          console.log(`BENCH load=${(load/1000).toFixed(1)}s first=${first.toFixed(0)}ms warm4=${fourPerCall.toFixed(0)}ms perq=${perQuestion.toFixed(0)}ms`);
+          JS
+          node bench.mjs
+
       - name: The model is the one this package ships
         # /health reports the encoder and the sha256 of the model actually
         # loaded. Comparing them against the manifest proves the install
