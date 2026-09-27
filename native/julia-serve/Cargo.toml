@@ -31,6 +31,11 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # CLI args
 clap = { version = "4", features = ["derive"] }
+# ONNX protobuf, for the dimension patch (see patch_dim_params in main.rs).
+# tract_onnx is already in the workspace for the wasm build, so reusing its
+# pb module avoids a second set of generated ONNX messages.
+tract-onnx = { version = "0.23", default-features = false }
+prost = "0.14"
 
 [features]
 # The normal build. Mirrors ort's own defaults minus the download/tls bits

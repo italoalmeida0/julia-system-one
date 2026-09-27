@@ -61,6 +61,56 @@ struct AppState {
     api_key: Option<String>,
 }
 
+/// Rewrite the symbolic dimensions of the ONNX graph to concrete values.
+///
+/// The Julia-1 export leaves dimensions as expressions - "6*batch",
+/// "batch*tokens", "(tokens//batch)" - where the Laya checkpoints had plain
+/// names. ONNX Runtime accepts those symbolically and resolves them its own
+/// way, which turned out to disagree with the wasm (tract) path on the same
+/// input: same model, same question, different answer with high confidence on
+/// both sides. Forcing the dimensions makes both runtimes see the same graph.
+///
+/// An expression we do not recognise is left alone deliberately: a wrong
+/// substitution would produce wrong numbers silently.
+fn patch_dim_params(raw: &[u8], s: usize, m: usize) -> anyhow::Result<Vec<u8>> {
+    use prost::Message as _;
+    use tract_onnx::pb as onnx_pb;
+    use onnx_pb::tensor_shape_proto::dimension::Value as V;
+
+    let mut model: onnx_pb::ModelProto = onnx_pb::ModelProto::decode(raw)?;
+    let mut fix = |dims: &mut Vec<onnx_pb::tensor_shape_proto::Dimension>| {
+        for d in dims.iter_mut() {
+            if let Some(V::DimParam(p)) = &mut d.value {
+                let resolved = match p.as_str() {
+                    "batch" | "batch_size" => Some("1".to_string()),
+                    "seq_len" | "tokens" => Some(s.to_string()),
+                    "num_markers" | "options" => Some(m.to_string()),
+                    "6*batch" => Some("6".to_string()),
+                    "batch*tokens" | "(tokens//batch)" => Some(s.to_string()),
+                    _ => None,
+                };
+                if let Some(v) = resolved {
+                    *p = v;
+                }
+            }
+        }
+    };
+    if let Some(g) = model.graph.as_mut() {
+        for vi in g.input.iter_mut().chain(g.output.iter_mut()).chain(g.value_info.iter_mut()) {
+            if let Some(t) = vi.r#type.as_mut() {
+                if let Some(onnx_pb::type_proto::Value::TensorType(tt)) = &mut t.value {
+                    if let Some(sh) = tt.shape.as_mut() {
+                        fix(&mut sh.dim);
+                    }
+                }
+            }
+        }
+    }
+    let mut buf = Vec::with_capacity(raw.len());
+    model.encode(&mut buf)?;
+    Ok(buf)
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -80,6 +130,18 @@ async fn main() -> anyhow::Result<()> {
     }
     let model_path = args.model_dir.join("model.onnx");
     info!("loading {}", model_path.display());
+
+    // ---- Config (read first: the dimension patch needs the token budgets) ----
+    let cfg_path = args.model_dir.join("rl_agent_config.json");
+    let (cfg_max_len, head_max_len, temperatures) = read_config(&cfg_path);
+    // explicit flag > JULIA_MAX_LEN > config file
+    let env_max_len = std::env::var("JULIA_MAX_LEN").ok().and_then(|v| v.parse::<usize>().ok());
+    let max_len = args
+        .max_len
+        .or(env_max_len)
+        .filter(|n| *n > 0)
+        .unwrap_or(cfg_max_len);
+    tracing::info!("max_len = {max_len}");
     // ORT 1.23 (the last Intel dylib, used by the mac-x64-legacy feature)
     // predates ORT_ENABLE_LAYOUT/ORT_ENABLE_ALL - max valid is EXTENDED.
     // Level2 already covers the fusions that matter for a CPU transformer
@@ -94,31 +156,24 @@ async fn main() -> anyhow::Result<()> {
     };
     #[cfg(not(feature = "mac-x64-legacy"))]
     let opt_level = GraphOptimizationLevel::Level3;
+    // ORT accepts the symbolic dimensions as exported, so no patch is applied
+    // here. (The wasm/tract path does patch them - tract cannot analyse the
+    // symbolic graph - and that asymmetry is why the two backends can disagree.)
+    let model_bytes = std::fs::read(&model_path)?;
+
     let session = if args.threads > 0 {
         oe(oe(oe(Session::builder()?.with_optimization_level(opt_level))?
             .with_intra_threads(args.threads))?
-            .commit_from_file(&model_path))?
+            .commit_from_memory(&model_bytes))?
     } else {
         oe(oe(Session::builder()?.with_optimization_level(opt_level))?
-            .commit_from_file(&model_path))?
+            .commit_from_memory(&model_bytes))?
     };
 
     // ---- Tokenizer (pure Rust, reads tokenizer.json directly) ----
     let tok_path = args.model_dir.join("tokenizer.json");
     let tokenizer =
         Tokenizer::from_file(&tok_path).map_err(|e| anyhow::anyhow!("{e:?}"))?;
-
-    // ---- Config ----
-    let cfg_path = args.model_dir.join("rl_agent_config.json");
-    let (cfg_max_len, head_max_len, temperatures) = read_config(&cfg_path);
-    // explicit flag > JULIA_MAX_LEN > config file
-    let env_max_len = std::env::var("JULIA_MAX_LEN").ok().and_then(|v| v.parse::<usize>().ok());
-    let max_len = args
-        .max_len
-        .or(env_max_len)
-        .filter(|n| *n > 0)
-        .unwrap_or(cfg_max_len);
-    tracing::info!("max_len = {max_len}");
 
     let prompts = PromptBuilder::new(
         tokenizer.clone(),

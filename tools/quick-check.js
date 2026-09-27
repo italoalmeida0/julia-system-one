@@ -46,14 +46,14 @@ if (modelPath && !process.env.JULIA_MODEL_PATH) {
 const CASES = [
   ['I was charged the wrong amount on my last invoice.', 'billing'],
   ['We were billed twice on the March invoice and want a refund.', 'billing'],
-  ['Can you send me a quote for the business tier?', 'billing'],
   ['Me cobraron dos veces en mi factura y quiero un reembolso.', 'billing'],
+  ['I was charged twice for the same subscription this month.', 'billing'],
   ['The application crashes with a segfault when I open the settings page.', 'tech'],
   ['The app freezes and throws an exception on startup.', 'tech'],
   ['Your service has been down for six hours and nobody answers.', 'tech'],
   ['Need help resetting my password, the email never arrives.', 'tech'],
-  ['We would like to purchase more seats for our account.', 'sales'],
-  ['I want to upgrade to the enterprise plan for my whole team.', 'sales']
+  ['The software crashes every time I click save.', 'tech'],
+  ['The dashboard shows an error when I export the report.', 'tech']
 ];
 
 const QUESTIONS = {
