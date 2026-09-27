@@ -170,6 +170,13 @@ once and can be cached by the browser like any other asset.
 
 Two honest notes:
 
+- **The wasm backend can answer differently from the native one.** Julia-1's
+  graph uses dynamic quantization (98 `DynamicQuantizeLinear`/`MatMulInteger`
+  pairs), and ONNX Runtime and tract implement that differently. On inputs
+  where they disagree, the native path matches the reference implementation
+  (Python + ONNX Runtime) and the wasm path does not. Prefer `native` wherever
+  it is available; treat `wasm` as a way to run at all, not as a second
+  opinion.
 - The wasm backend is roughly **40x slower** than the native binary — a
   question takes seconds in a browser, not milliseconds. It exists so the
   browser works at all.
