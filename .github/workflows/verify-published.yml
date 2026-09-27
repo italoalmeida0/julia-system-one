@@ -82,12 +82,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # read the expected count from the manifest rather than hardcoding it:
-          # this was 13 (the count for the checkpoint this runtime was first
-          # built for) and every job failed against a model that ships 6.
-          # The path is resolved before cd, because the manifest is in the repo
-          # root and this step runs from verify/.
-          WANT=$(node -p 'require("./models/model.manifest.json").chunkCount')
+          # The expected count comes from the manifest, not a literal: it was
+          # hardcoded to 13 (the count for the checkpoint this runtime was
+          # first built for) and every job failed against a model that ships 6.
+          # An absolute path is used because an earlier step cd'd into verify/,
+          # and the working directory persists across steps.
+          WANT=$(node -p "require('$GITHUB_WORKSPACE/models/model.manifest.json').chunkCount")
           cd verify
           N=$(ls -d node_modules/@sys-one/julia-model-chunk-* | wc -l)
           echo "chunk packages: $N (expected $WANT)"
