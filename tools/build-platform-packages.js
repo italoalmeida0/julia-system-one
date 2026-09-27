@@ -1,0 +1,386 @@
+#!/usr/bin/env node
+/**
+ * build-platform-packages.js — generate the per-platform npm packages.
+ *
+ * The main package no longer ships 150+ MB of binaries for every platform.
+ * Instead each platform's `julia-serve` lives in its own tiny package, listed
+ * as an `optionalDependencies` of `julia-system-one`. npm picks the matching
+ * one at install time from the `os` / `cpu` fields and silently skips the
+ * rest, so a user downloads exactly one binary.
+ *
+ * Layout choice (verified against how npm actually works):
+ *   - `os` and `cpu` filter reliably (esbuild/SWC/Rollup rely on this).
+ *   - `libc` does NOT: it is undocumented-until-recently, accepts both
+ *     string and array forms, and real packages (sharp) have shipped bugs
+ *     where `--libc=glibc` installs the musl build too. So we never rely on
+ *     it: the glibc and musl builds of one Linux arch travel TOGETHER in a
+ *     single package and the loader picks the right file at runtime.
+ *
+ *   @julia-system-one/julia-serve-darwin-arm64   os=darwin  cpu=arm64   (julia-serve)
+ *   @julia-system-one/julia-serve-darwin-x64     os=darwin  cpu=x64     (julia-serve)
+ *   @julia-system-one/julia-serve-win32-x64      os=win32   cpu=x64     (julia-serve.exe)
+ *   @julia-system-one/julia-serve-win32-arm64    os=win32   cpu=arm64   (julia-serve.exe)
+ *   @julia-system-one/julia-serve-linux-x64      os=linux   cpu=x64     (glibc + musl)
+ *   @julia-system-one/julia-serve-linux-arm64    os=linux   cpu=arm64   (glibc + musl)
+ *   @julia-system-one/julia-serve-universal      (no os/cpu)            (every binary)
+ *
+ * The universal package is the "cannot tell what this is" safety net: if a
+ * platform matches none of the specific packages (odd libc, unknown arch,
+ * a distro npm mismatches), npm installs the universal one instead.
+ *
+ *   node tools/build-platform-packages.js build [--only <slot>]...
+ *   node tools/build-platform-packages.js pack  [--out dist/release/tarballs]
+ *   node tools/build-platform-packages.js list
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
+const BIN_DIR = path.join(ROOT, 'dist', 'bin');
+const OUT_DIR = path.join(ROOT, 'dist', 'release', 'binaries');
+
+const SCOPE = '@julia-system-one';
+const REPO = {
+  type: 'git',
+  url: 'git+https://github.com/italoalmeida0/julia-system-one.git'
+};
+
+/**
+ * One entry per platform package. `files` lists the binary artifacts that
+ * package ships, relative to dist/bin/<slot>/.
+ */
+const PACKAGES = [
+  {
+    name: `${SCOPE}/julia-serve-darwin-arm64`,
+    os: ['darwin'], cpu: ['arm64'],
+    source: 'darwin-arm64',
+    files: ['julia-serve']
+  },
+  {
+    name: `${SCOPE}/julia-serve-darwin-x64`,
+    os: ['darwin'], cpu: ['x64'],
+    source: 'darwin-x64',
+    files: ['julia-serve', 'libonnxruntime.dylib']
+  },
+  {
+    name: `${SCOPE}/julia-serve-win32-x64`,
+    os: ['win32'], cpu: ['x64'],
+    source: 'win32-x64',
+    files: ['julia-serve.exe']
+  },
+  {
+    name: `${SCOPE}/julia-serve-win32-arm64`,
+    os: ['win32'], cpu: ['arm64'],
+    source: 'win32-arm64',
+    files: ['julia-serve.exe']
+  },
+  {
+    // glibc AND musl together: npm cannot select on libc reliably (see the
+    // header). The JS loader picks julia-serve vs julia-serve.bundle at runtime.
+    name: `${SCOPE}/julia-serve-linux-x64`,
+    os: ['linux'], cpu: ['x64'],
+    source: ['linux-x64', 'linux-x64-musl'],
+    files: ['julia-serve', 'julia-serve.bundle']
+  },
+  {
+    name: `${SCOPE}/julia-serve-linux-arm64`,
+    os: ['linux'], cpu: ['arm64'],
+    source: ['linux-arm64', 'linux-arm64-musl'],
+    files: ['julia-serve', 'julia-serve.bundle']
+  },
+  {
+    // Last resort: every binary, for whatever the specific packages missed.
+    //
+    // npm's os/cpu lists are AND-ed with per-value exclusion (`!linux` means
+    // "not linux"), so the complement of the six packages cannot be spelled
+    // out directly - verified by experiment, os:['!darwin','!win32','!linux']
+    // installs nowhere. The workable shape is the other way round: list the
+    // exotic cpus and the extra OSes explicitly, so this package is skipped
+    // on every target a specific package already covers (x64/arm64 on
+    // darwin/win32/linux) and installs on the rest (ppc64, s390x, riscv64,
+    // freebsd, ...). Verified: linux/ppc64 selects it, linux/x64 does not.
+    //
+    // `npm install --omit=optional` opts out entirely; the bundled wasm
+    // engine then keeps the machine running.
+    name: `${SCOPE}/julia-serve-universal`,
+    os: ['darwin', 'win32', 'linux', 'freebsd', 'openbsd', 'netbsd', 'sunos', 'aix'],
+    cpu: ['ppc64', 'ppc64le', 's390x', 'riscv64', 'ia32', 'loong64', 'mips', 'mips64', 'mips64el', 'arm', 'armel'],
+    source: null, // copies every slot
+    files: null
+  }
+];
+
+/** Slots present either as a local build or inside an already-staged package. */
+function allSources() {
+  const found = new Set();
+  if (fs.existsSync(BIN_DIR)) {
+    for (const e of fs.readdirSync(BIN_DIR, { withFileTypes: true })) {
+      if (e.isDirectory()) found.add(e.name);
+    }
+  }
+  if (fs.existsSync(OUT_DIR)) {
+    for (const pkg of fs.readdirSync(OUT_DIR, { withFileTypes: true })) {
+      if (!pkg.isDirectory()) continue;
+      const bin = path.join(OUT_DIR, pkg.name, 'bin');
+      if (!fs.existsSync(bin)) continue;
+      for (const e of fs.readdirSync(bin, { withFileTypes: true })) {
+        if (e.isDirectory()) found.add(e.name);
+      }
+    }
+  }
+  return [...found].sort();
+}
+
+function parseArgs(argv) {
+  const args = { _: [] };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--')) {
+      const key = a.slice(2);
+      const next = argv[i + 1];
+      if (next && !next.startsWith('--')) { args[key] = next; i++; } else { args[key] = true; }
+    } else {
+      args._.push(a);
+    }
+  }
+  return args;
+}
+
+function packageJsonFor(pkg, version) {
+  const json = {
+    name: pkg.name,
+    version,
+    description: `Bundled julia-serve native binary for ${pkg.source === null ? 'every platform' : String(pkg.source)} (julia-system-one)`,
+    license: 'Apache-2.0',
+    repository: REPO,
+    homepage: 'https://github.com/italoalmeida0/julia-system-one#readme',
+    // pure data + a prebuilt executable: never run code on install
+    scripts: {},
+    keywords: ['julia', 'julia-serve', 'native', 'binary']
+  };
+  if (pkg.os) json.os = pkg.os;
+  if (pkg.cpu) json.cpu = pkg.cpu;
+  json.files = ['bin/', 'README.md', 'LICENSE'];
+  return json;
+}
+
+function readmeFor(pkg) {
+  const where = pkg.source === null
+    ? 'every platform we build for'
+    : [].concat(pkg.source).join(' and ');
+  return `# ${pkg.name}
+
+Prebuilt \`julia-serve\` binary for **${where}**.
+
+This package exists so \`julia-system-one\` can install only the binary your
+machine needs instead of all of them. You do not install it directly — run
+\`npm install julia-system-one\` and npm selects the right one through
+\`optionalDependencies\` + the \`os\`/\`cpu\` fields.
+
+The binary is the self-contained Rust inference server (Axum + tokenizers +
+ONNX Runtime). Nothing is compiled or downloaded at install time.
+
+License: Apache-2.0. See the main package for documentation.
+`;
+}
+
+function copyIfExists(src, destDir) {
+  if (!fs.existsSync(src)) return false;
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.copyFileSync(src, path.join(destDir, path.basename(src)));
+  return true;
+}
+
+/**
+ * Stage one slot into <pkgDir>/bin/<slot>/. Every platform package uses the
+ * same layout (including the universal one), so the JS loader has a single
+ * shape to look for: bin/<slot>/<file>.
+ */
+/**
+ * Where a slot's files are. Two sources are possible:
+ *   - dist/bin/<slot>/   a local build (cargo output, make-bundle)
+ *   - dist/release/binaries/@julia-system-one__julia-serve-<pkg>/bin/<slot>/
+ *     the same files already packaged, which is what CI's entry job holds:
+ *     there the binaries arrive as artifacts, not in dist/bin.
+ * Returns null when neither exists.
+ */
+function resolveSlotDir(slot) {
+  const direct = path.join(BIN_DIR, slot);
+  if (fs.existsSync(direct)) return direct;
+
+  if (!fs.existsSync(OUT_DIR)) return null;
+  for (const entry of fs.readdirSync(OUT_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const candidate = path.join(OUT_DIR, entry.name, 'bin', slot);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Expected magic bytes per platform. A mismatch means the file is not a
+ * binary for that platform at all - usually a mis-copy or a stale build - and
+ * shipping it produces a package that installs and then cannot run.
+ */
+const MAGIC = {
+  win32: [0x4d, 0x5a],                   // MZ
+  linux: [0x7f, 0x45, 0x4c, 0x46],       // \x7fELF
+  darwin: [0xcf, 0xfa, 0xed, 0xfe],      // Mach-O 64 little-endian
+  darwinBE: [0xfe, 0xed, 0xfa, 0xcf]     // Mach-O 64 big-endian (rare)
+};
+
+/**
+ * Check that a staged binary really belongs to its slot.
+ * Returns null when fine, or a human-readable reason when not.
+ */
+function binaryProblem(file, slot) {
+  let head;
+  try {
+    const fd = fs.openSync(file, 'r');
+    head = Buffer.alloc(4);
+    fs.readSync(fd, head, 0, 4, 0);
+    fs.closeSync(fd);
+  } catch (err) {
+    return `unreadable: ${err.message}`;
+  }
+
+  const os = slot.split('-')[0];
+  const matches = (magic) => magic.every((b, i) => head[i] === b);
+
+  if (os === 'win32') return matches(MAGIC.win32) ? null : `not a Windows binary (starts ${head.toString('hex')})`;
+  if (os === 'linux') return matches(MAGIC.linux) ? null : `not a Linux binary (starts ${head.toString('hex')})`;
+  if (os === 'darwin') {
+    return (matches(MAGIC.darwin) || matches(MAGIC.darwinBE)) ? null : `not a macOS binary (starts ${head.toString('hex')})`;
+  }
+  return null;
+}
+
+function stageSlots(slots, pkgDir) {
+  const written = [];
+  for (const slot of slots) {
+    const slotDir = resolveSlotDir(slot);
+    if (!slotDir) continue;
+    const dest = path.join(pkgDir, 'bin', slot);
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(slotDir, { withFileTypes: true })) {
+      if (!entry.isFile()) continue; // leftover lib/ dirs never ship
+      // the musl bundle is a shell script wrapping the real binary, so its
+      // format is checked after extraction, not here
+      if (!entry.name.endsWith('.bundle')) {
+        const problem = binaryProblem(path.join(slotDir, entry.name), slot);
+        if (problem) {
+          throw new Error(`${slot}: ${entry.name} ${problem} - refusing to package it`);
+        }
+      }
+      const out = path.join(dest, entry.name);
+      fs.copyFileSync(path.join(slotDir, entry.name), out);
+      fs.chmodSync(out, 0o755);
+      written.push(path.relative(pkgDir, out));
+    }
+  }
+  return written;
+}
+
+function cmdBuild(args) {
+  // Default to the version in package.json: a build must never invent one,
+  // and the workflow stamps that file before calling this.
+  const version = args.version || JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  // `--only <slot>` builds a single platform package (plus the universal one,
+  // which by definition carries everything). CI passes it so each job uploads
+  // exactly the package it produced: without it, every job writes all seven
+  // package.json files, six of them empty, and whichever artifact is copied
+  // last decides what the release contains.
+  const only = args.only ? [].concat(args.only) : null;
+  const wanted = PACKAGES.filter((pkg) => {
+    if (!only) return true;
+    if (only.includes('universal')) return pkg.source === null;
+    return pkg.source !== null && [].concat(pkg.source).some((slot) => only.includes(slot));
+  });
+
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+
+  let built = 0;
+  for (const pkg of wanted) {
+    const pkgDir = path.join(OUT_DIR, pkg.name.replace('/', '__'));
+    // Clear only the packages this run is about to rewrite. Deleting OUT_DIR
+    // outright would wipe packages another job already staged there - the
+    // entry job assembles the universal package next to the ones it just
+    // copied from the artifacts.
+    fs.rmSync(pkgDir, { recursive: true, force: true });
+    const slots = pkg.source === null ? allSources() : [].concat(pkg.source);
+    const staged = stageSlots(slots, pkgDir);
+
+    if (staged.length === 0) {
+      console.log(`[pkgs] SKIP ${pkg.name.padEnd(38)} (no binary in dist/bin)`);
+      fs.rmSync(pkgDir, { recursive: true, force: true });
+      continue;
+    }
+
+    // only write metadata for a package that actually has a payload
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify(packageJsonFor(pkg, version), null, 2) + '\n');
+    fs.writeFileSync(path.join(pkgDir, 'README.md'), readmeFor(pkg));
+    const license = path.join(ROOT, 'LICENSE');
+    if (fs.existsSync(license)) fs.copyFileSync(license, path.join(pkgDir, 'LICENSE'));
+
+    console.log(`[pkgs] ok   ${pkg.name.padEnd(38)} ${staged.length} file(s)`);
+    built++;
+  }
+  console.log(`\n[pkgs] ${built} package(s) materialised in ${path.relative(ROOT, OUT_DIR)} (version ${version})`);
+}
+
+function cmdPack(args) {
+  const outDir = path.resolve(ROOT, args.out || path.join('dist', 'release', 'tarballs'));
+  fs.mkdirSync(outDir, { recursive: true });
+  if (!fs.existsSync(OUT_DIR)) {
+    console.error('[pkgs] run `node tools/build-platform-packages.js build` first');
+    process.exit(1);
+  }
+  let packed = 0;
+  for (const dir of fs.readdirSync(OUT_DIR)) {
+    const full = path.join(OUT_DIR, dir);
+    if (!fs.statSync(full).isDirectory()) continue;
+    const name = JSON.parse(fs.readFileSync(path.join(full, 'package.json'), 'utf8')).name;
+    // An empty package would install and then fail at runtime: a missing
+    // binary means the release build did not produce it, so never ship it.
+    const binDir = path.join(full, 'bin');
+    if (!fs.existsSync(binDir) || fs.readdirSync(binDir).length === 0) {
+      console.log(`[pkgs] skip empty ${name} (no binary staged)`);
+      continue;
+    }
+    const r = spawnSync('npm', ['pack', '--pack-destination', outDir], { cwd: full, encoding: 'utf8', shell: true });
+    if (r.status !== 0) {
+      console.error(`[pkgs] npm pack failed for ${name}:\n${r.stderr}`);
+      process.exit(1);
+    }
+    console.log(`[pkgs] packed ${name}`);
+    packed++;
+  }
+  console.log(`[pkgs] ${packed} tarball(s) in ${path.relative(ROOT, outDir)}`);
+}
+
+function cmdList() {
+  console.log('platform packages (optionalDependencies of julia-system-one):\n');
+  for (const pkg of PACKAGES) {
+    const sel = pkg.os ? `os=[${pkg.os}] cpu=[${pkg.cpu}]` : 'os/cpu: any (universal fallback)';
+    console.log(`  ${pkg.name.padEnd(38)} ${sel}`);
+  }
+  console.log('\nslots present (dist/bin or staged packages): ' + (allSources().join(', ') || '(none)'));
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const cmd = args._[0] || 'list';
+  if (cmd === 'build') cmdBuild(args);
+  else if (cmd === 'pack') cmdPack(args);
+  else if (cmd === 'list') cmdList();
+  else {
+    console.error(`unknown command: ${cmd}\nusage: build-platform-packages.js [build|pack|list]`);
+    process.exit(1);
+  }
+}
+
+main();

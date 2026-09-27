@@ -1,0 +1,27 @@
+# deps / logs / env
+node_modules/
+*.tgz
+*.log
+.env
+
+# ---- build outputs (NAO vai pro github) ----
+dist/
+native/*/target/
+native/julia-serve/ort-musl/*.so
+native/julia-serve/ort-musl/*.a
+
+# ---- model weights (baixado via Release/download em runtime) ----
+*.onnx
+models/model.onnx
+
+# temp / cache
+.cache/
+tmp/
+C:/temp/
+*cmp-body.json
+
+# vendored rust patches (gerado local, nao vai pro git)
+native/*/vendor/
+
+# upstream reference clone (temporary, for model export work)
+.upstream/

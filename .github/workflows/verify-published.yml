@@ -1,0 +1,216 @@
+name: verify published
+
+# Installs a PUBLISHED version from the real npm registry and uses it, on
+# every platform we claim to support. This is the test that cannot be faked
+# locally: it proves that npm's own selection (os/cpu in optionalDependencies)
+# picks the right package out of the registry, that the binary arrives and
+# runs, that the model chunks assemble, and that inference answers correctly.
+#
+# Run it after publishing an alpha, before promoting to latest:
+#
+#   gh workflow run verify-published.yml -f version=1.1.0-alpha.0 -f tag=alpha
+#
+# Coverage:
+#   linux glibc x64/arm64     native binary
+#   linux musl  x64/arm64     native binary (container, real Alpine)
+#   windows x64/arm64         native binary
+#   macos arm64/x64           native binary
+#   each of the above in Node, and once more under Bun
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact published version (e.g. 1.1.0-alpha.0)'
+        required: true
+      tag:
+        description: 'dist-tag it was published under'
+        required: false
+        default: 'alpha'
+
+concurrency:
+  group: verify-published-${{ github.event.inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  # ------------------------------------------------------------------
+  # native platforms: install from npm and run for real
+  # ------------------------------------------------------------------
+  native:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'linux-x64 glibc',   os: ubuntu-latest,    slot: linux-x64,     bin: julia-serve }
+          - { name: 'linux-arm64 glibc', os: ubuntu-24.04-arm, slot: linux-arm64,   bin: julia-serve }
+          - { name: 'win32-x64',         os: windows-latest,   slot: win32-x64,     bin: julia-serve.exe }
+          - { name: 'win32-arm64',       os: windows-11-arm,   slot: win32-arm64,   bin: julia-serve.exe }
+          - { name: 'darwin-arm64',      os: macos-latest,     slot: darwin-arm64,  bin: julia-serve }
+          - { name: 'darwin-x64',        os: macos-15-intel,   slot: darwin-x64,    bin: julia-serve }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-node@v7
+        with: { node-version: 22 }
+
+      - name: Install from the registry (nothing cached, nothing local)
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p verify && cd verify
+          npm init -y >/dev/null
+          npm install "julia-system-one@$VERSION" --no-audit --no-fund
+          echo "--- installed @julia-system-one packages ---"
+          ls node_modules/@julia-system-one/ | sort
+
+      - name: Exactly the right platform package arrived
+        shell: bash
+        env:
+          SLOT: ${{ matrix.slot }}
+        run: |
+          set -euo pipefail
+          cd verify
+          SPECIFIC=$(ls node_modules/@julia-system-one/ | grep '^julia-serve-' | grep -v universal || true)
+          COUNT=$(echo "$SPECIFIC" | grep -c . || true)
+          echo "specific platform packages: $SPECIFIC"
+          [ "$COUNT" -eq 1 ] || { echo "expected exactly one, got $COUNT"; exit 1; }
+          [ "$SPECIFIC" = "julia-serve-$SLOT" ] || { echo "expected julia-serve-$SLOT"; exit 1; }
+
+      - name: The model chunks arrived
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verify
+          N=$(ls -d node_modules/@julia-system-one/julia-model-chunk-* | wc -l)
+          echo "chunk packages: $N"
+          [ "$N" -ge 13 ] || { echo "expected 13 chunks"; exit 1; }
+
+      - name: Binary is present and executable
+        shell: bash
+        env:
+          SLOT: ${{ matrix.slot }}
+          BIN: ${{ matrix.bin }}
+        run: |
+          set -euo pipefail
+          cd verify
+          B="node_modules/@julia-system-one/julia-serve-$SLOT/bin/$SLOT/$BIN"
+          ls -la "$B"
+          if [ "${{ runner.os }}" != "Windows" ]; then
+            test -x "$B" || { echo "binary is not executable"; exit 1; }
+          fi
+          "$B" --help 2>&1 | head -2
+
+      - name: Node — install, load and answer 10 questions
+        shell: bash
+        env:
+          JULIA_REQUIRE_MODEL: '1'
+        run: |
+          set -euo pipefail
+          cd verify
+          cat > check.mjs <<'JS'
+          import { Julia } from 'julia-system-one';
+          const cases = [
+            ['We were billed twice on the March invoice and want a refund.', 'billing'],
+            ['The application crashes with a segfault when I open the settings page.', 'tech'],
+            ['Fui cobrado em duplicidade na minha fatura e quero reembolso.', 'billing'],
+            ['Me cobraron dos veces en mi factura y quiero un reembolso.', 'billing'],
+            ['Your service has been down for six hours and nobody answers.', 'tech'],
+            ['The app freezes and throws an exception on startup.', 'tech'],
+            ['I was charged the wrong amount on my last invoice.', 'billing'],
+            ['Quero fazer upgrade do meu plano para o empresarial.', 'sales'],
+            ['Can you send me a quote for the business tier?', 'sales'],
+            ['We would like to purchase more seats for our account.', 'sales']
+          ];
+          const q = { department: { type: 'choice', instructions: 'Which department should handle this?',
+            criteria: { billing: 'refunds and invoices', tech: 'bugs and crashes', sales: 'upgrades and contracts' } } };
+          const t0 = Date.now();
+          const julia = await Julia.load({ backend: 'native' });
+          let pass = 0;
+          for (const [prompt, expected] of cases) {
+            const got = (await julia.predict(prompt, q)).answers.department.choice;
+            if (got === expected) pass++; else console.log('  mismatch', { prompt, expected, got });
+          }
+          console.log(`correct: ${pass}/${cases.length} in ${((Date.now()-t0)/1000).toFixed(1)}s`);
+          await julia.close();
+          if (pass < 8) process.exit(1);
+          JS
+          node check.mjs
+
+      - name: The binary came from node_modules (no silent wasm fallback)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verify
+          cat > where.mjs <<'JS'
+          import { resolveBinaryOrNull } from 'julia-system-one/src/julia-native.js';
+          const bin = resolveBinaryOrNull();
+          console.log('resolved:', bin);
+          if (!bin || !bin.includes('node_modules')) { console.error('not from node_modules'); process.exit(1); }
+          JS
+          node where.mjs
+
+      - name: CLI works
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verify
+          npx julia-system-one --version
+
+      - name: Bun — the same install, a different runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verify
+          if ! command -v bun >/dev/null 2>&1; then
+            curl -fsSL https://bun.sh/install | bash
+            export BUN_INSTALL="$HOME/.bun"
+            export PATH="$BUN_INSTALL/bin:$PATH"
+          fi
+          bun --version
+          bun check.mjs
+
+  # ------------------------------------------------------------------
+  # musl: the other libc, tested on real Alpine
+  # ------------------------------------------------------------------
+  musl:
+    name: linux-${{ matrix.arch }} musl (alpine)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64,   runner: ubuntu-latest,    platform: linux/amd64 }
+          - { arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install and run inside Alpine (node + bun)
+        env:
+          VERSION: ${{ inputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -e VERSION -e ARCH \
+            -v "$GITHUB_WORKSPACE:/work" -w /work alpine:3.22 sh /work/.github/alpine-verify.sh
+
+  # ------------------------------------------------------------------
+  # report: one place to read the outcome
+  # ------------------------------------------------------------------
+  summary:
+    name: summary
+    needs: [native, musl]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "version : ${{ inputs.version }} (tag: ${{ inputs.tag }})"
+          echo "native  : ${{ needs.native.result }}"
+          echo "musl    : ${{ needs.musl.result }}"
+          if [ "${{ needs.native.result }}" != "success" ] || [ "${{ needs.musl.result }}" != "success" ]; then
+            echo "VERIFICATION FAILED - do not promote to latest"
+            exit 1
+          fi
+          echo "VERIFIED on every platform - safe to publish --tag latest"
