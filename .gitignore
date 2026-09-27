@@ -25,3 +25,12 @@ native/*/vendor/
 
 # upstream reference clone (temporary, for model export work)
 .upstream/
+
+# scratch files from investigation
+.score.py
+.ref.js
+.card.md
+.cpu.json
+.td.parquet
+.qtype.py
+.jv/
