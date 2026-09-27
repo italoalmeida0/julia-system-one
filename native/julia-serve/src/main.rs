@@ -156,10 +156,13 @@ async fn main() -> anyhow::Result<()> {
     };
     #[cfg(not(feature = "mac-x64-legacy"))]
     let opt_level = GraphOptimizationLevel::Level3;
-    // ORT accepts the symbolic dimensions as exported, so no patch is applied
-    // here. (The wasm/tract path does patch them - tract cannot analyse the
-    // symbolic graph - and that asymmetry is why the two backends can disagree.)
-    let model_bytes = std::fs::read(&model_path)?;
+    // Apply the dimension patch, exactly as the wasm path does. Julia-1's
+    // export leaves dimensions as expressions ("6*batch", "(tokens//batch)")
+    // and the two runtimes resolve them differently unless the graph is made
+    // concrete first: without this, x64 answered "sales" where arm64 answered
+    // "tech" on the same input.
+    let raw = std::fs::read(&model_path)?;
+    let model_bytes = patch_dim_params(&raw, max_len, head_max_len)?;
 
     let session = if args.threads > 0 {
         oe(oe(oe(Session::builder()?.with_optimization_level(opt_level))?

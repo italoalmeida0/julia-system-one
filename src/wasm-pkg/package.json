@@ -1,0 +1,17 @@
+{
+  "name": "julia-inference",
+  "type": "module",
+  "description": "Pure-Rust inference core for julia-system-one (tract, no ONNX Runtime)",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "files": [
+    "julia_inference_bg.wasm",
+    "julia_inference.js",
+    "julia_inference.d.ts"
+  ],
+  "main": "julia_inference.js",
+  "types": "julia_inference.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
