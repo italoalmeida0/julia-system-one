@@ -164,14 +164,22 @@ async fn main() -> anyhow::Result<()> {
     let raw = std::fs::read(&model_path)?;
     let model_bytes = patch_dim_params(&raw, max_len, head_max_len)?;
 
-    let session = if args.threads > 0 {
-        oe(oe(oe(Session::builder()?.with_optimization_level(opt_level))?
-            .with_intra_threads(args.threads))?
-            .commit_from_memory(&model_bytes))?
-    } else {
-        oe(oe(Session::builder()?.with_optimization_level(opt_level))?
-            .commit_from_memory(&model_bytes))?
-    };
+    // Pin the CPU execution provider explicitly.
+    //
+    // Left to itself, ONNX Runtime picks the first registered provider, and on
+    // Windows the ort-sys prebuilt is the DirectML build - so the same model
+    // answered differently on Windows than on Linux (3/10 vs 10/10 on the same
+    // questions). This package is a CPU decision engine; the provider must not
+    // depend on which prebuilt happened to be downloaded.
+    let mut builder = oe(Session::builder()?.with_optimization_level(opt_level))?;
+    if args.threads > 0 {
+        builder = oe(builder.with_intra_threads(args.threads))?;
+    }
+    // with_execution_providers returns BuilderResult, not Result
+    let mut builder = builder
+        .with_execution_providers([ort::execution_providers::CPU::default().build()])
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    let session = oe(builder.commit_from_memory(&model_bytes))?;
 
     // ---- Tokenizer (pure Rust, reads tokenizer.json directly) ----
     let tok_path = args.model_dir.join("tokenizer.json");
