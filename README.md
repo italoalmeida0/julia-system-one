@@ -344,35 +344,26 @@ time. Switch with `--backend wasm` or `JULIA_BACKEND=wasm`.
 
 ## 📊 Performance
 
-Julia-1 is a 144.3M-parameter ModernBERT encoder — less than half of the
-mmBERT-base checkpoints this runtime was first built for, and correspondingly
-faster.
+Measured on real hardware, on every platform we ship a binary for, with the
+default `native` backend. Run `npm run bench` to measure your own machine.
 
-Measured through the published package on shared GitHub runners, one question
-per call, `native` backend:
+| Platform | Load | First answer | Warm (4 q/call) | Per question |
+| :--- | ---: | ---: | ---: | ---: |
+| Linux arm64 | 1.3 s | 57 ms | 92 ms | 31 ms |
+| Linux x64 | 1.3 s | 67 ms | 109 ms | 34 ms |
+| Windows arm64 | 1.4 s | 89 ms | 110 ms | 33 ms |
+| macOS arm64 | 1.5 s | 71 ms | 114 ms | 38 ms |
+| Windows x64 | 1.9 s | 75 ms | 108 ms | 37 ms |
+| macOS x64 | 4.2 s | 126 ms | 484 ms | 55 ms |
 
-| Platform | 10 questions | Per question |
-| :--- | ---: | ---: |
-| Linux arm64 | 2.2 s | 220 ms |
-| Linux x64 | 2.6 s | 260 ms |
-| Windows x64 | 3.4 s | 340 ms |
-| Windows arm64 | 3.4 s | 340 ms |
-| macOS arm64 | 3.5 s | 350 ms |
-| macOS x64 | 5.9 s | 590 ms |
+`Load` is reading the model into memory. `First answer` includes warmup. The
+warm numbers are sustained latency. Shared CI runners vary by ~20% between
+runs, so treat these as orders of magnitude rather than exact figures.
 
-Those are cold-start numbers on a shared runner, including loading the model
-into memory — the worst case, and the one a CI job sees. On a warm engine the
-same question costs far less; on one Windows arm64 machine (Snapdragon X), for
-example:
-
-| | |
-| :--- | ---: |
-| load the model | 1.8 s |
-| first answer (includes warmup) | 81 ms |
-| warm, per question | 18 ms |
-
-Run `npm run bench` to measure your own machine. Shared runners vary by ~20%
-between runs, so treat these as orders of magnitude.
+For scale, the mmBERT-base checkpoint this runtime was first built for costs
+~40 ms per question on Linux arm64, ~47 ms on Windows arm64 and ~51 ms on
+macOS arm64 — measured the same way. At 144.3M parameters against 322M, this
+model is about 30% faster on average.
 
 The `wasm` backend is much slower — seconds per question rather than
 milliseconds. It exists so browsers and unusual platforms work at all, not for
