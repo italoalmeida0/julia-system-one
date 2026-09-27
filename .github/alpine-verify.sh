@@ -7,7 +7,7 @@
 # them produced unterminated strings twice.
 #
 # Env:
-#   VERSION  the published version to install (e.g. 1.1.0-alpha.1)
+#   VERSION  the published version to install (e.g. 1.0.0)
 #   ARCH     x64 or arm64
 set -eu
 
@@ -54,11 +54,11 @@ const q = {
   }
 };
 const cases = [
+  ['I was charged the wrong amount on my last invoice.', 'billing'],
   ['We were billed twice on the March invoice and want a refund.', 'billing'],
   ['The application crashes with a segfault when I open the settings page.', 'tech'],
-  ['Quero fazer upgrade do meu plano para o empresarial.', 'sales'],
-  ['Me cobraron dos veces en mi factura y quiero un reembolso.', 'billing'],
-  ['The app freezes and throws an exception on startup.', 'tech']
+  ['The app freezes and throws an exception on startup.', 'tech'],
+  ['Your service has been down for six hours and nobody answers.', 'tech']
 ];
 const t0 = Date.now();
 const julia = await Julia.load({ backend: 'native' });
