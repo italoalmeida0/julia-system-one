@@ -57,7 +57,12 @@ export async function resolveModelPath(modelDir, options = {}) {
   // directory, so the Node resolver does not apply: the model is a URL.
   if (isBrowser) {
     if (options.modelPath) return options.modelPath;
-    return new URL('model.onnx', String(modelDir).replace(/\/?$/, '/')).href;
+    // modelDir may be relative ('./models/'), and new URL() needs an absolute
+    // base: resolve it against this module's own URL, which is absolute in a
+    // browser. An absolute http(s) modelDir is used as-is.
+    const dir = String(modelDir).replace(/\/?$/, '/');
+    const base = /^[a-z]+:/i.test(dir) ? dir : new URL(dir, import.meta.url).href;
+    return new URL('model.onnx', base).href;
   }
   const { resolveModel } = await import('./model-resolver.js');
   const resolved = await resolveModel({ modelDir, ...options });

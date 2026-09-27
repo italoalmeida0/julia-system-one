@@ -1,0 +1,16 @@
+<!doctype html>
+<html><body>
+<script type="module">
+  window.__result = null;
+  try {
+    const { Julia } = await import('./src/index.js');
+    const j = await Julia.load({ modelDir: new URL('./models/', location.href).href, wasmBase: new URL('./src/wasm-pkg/', location.href).href, backend: 'wasm' });
+    const out = await j.predict('We were billed twice and want a refund.', {
+      department: { type: 'choice', instructions: 'Which department?',
+        criteria: { billing: 'refunds', tech: 'bugs', sales: 'upgrades' } }
+    });
+    window.__result = { ok: true, answer: out.answers.department.choice, conf: out.answers.department.confidence };
+    await j.close();
+  } catch (e) { window.__result = { ok: false, error: String((e && e.message) || e), stack: String(e && e.stack || '').split('\n').slice(0,4) }; }
+</script>
+</body></html>

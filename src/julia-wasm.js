@@ -51,7 +51,12 @@ let _wasmBytes = null;
  */
 async function wasmPkgUrls(options = {}) {
   const override = options.wasmBase || env('JULIA_WASM_BASE');
-  const remoteBase = override ? new URL(String(override).replace(/\/?$/, '/'), import.meta.url) : null;
+  // A relative override ('./src/wasm-pkg/') is resolved against this module's
+  // URL; an absolute http(s) one is used as-is. Treating a relative path as
+  // an absolute base produced 'src/src/wasm-pkg/...'.
+  const remoteBase = override
+    ? new URL(String(override).replace(/\/?$/, '/'), import.meta.url)
+    : null;
 
   if (isBrowser) {
     const base = remoteBase || new URL('./wasm-pkg/', import.meta.url);
@@ -90,9 +95,13 @@ async function getModule(options = {}) {
   // The wasm-pack `--target web` glue imports its sibling relatively, so it
   // resolves the same way from a file URL or a browser URL.
   const glue = await import(/* @vite-ignore */ urls.glue);
-  // `initSync` takes the raw bytes: no fetch inside the glue, which keeps the
-  // same code path on both runtimes.
-  glue.initSync({ module: _wasmBytes });
+
+  // `initSync` compiles the module on the calling thread, and Chrome refuses
+  // to compile more than 8 MB that way ("Compile is disallowed on the main
+  // thread") - this wasm is ~13 MB, so the browser must take the async path,
+  // which uses WebAssembly.compile. Node has no such limit, but the async
+  // call works there too, so one path serves both.
+  await glue.default({ module_or_path: _wasmBytes });
   _mod = glue;
   return glue;
 }

@@ -53,7 +53,8 @@
     "quick:check": "node ./tools/quick-check.js",
     "preflight": "node ./tools/preflight-publish.js",
     "model:export": "python ./tools/export-model.py",
-    "model:diff": "node ./tools/model-diff.js"
+    "model:diff": "node ./tools/model-diff.js",
+    "test:browser": "node ./tests/browser/run.mjs"
   },
   "repository": {
     "type": "git",
