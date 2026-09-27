@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * publish-all.js — publish every @julia-system-one package, locally, in the right order.
+ * publish-all.js — publish every @sys-one package, locally, in the right order.
  *
  * Publication happens on YOUR machine (you can `npm login` without dealing
  * with long-lived tokens in CI). The heavy lifting - building the binaries
@@ -184,7 +184,7 @@ function cmdDownload(args) {
   // The universal package is not an artifact of its own: the entry job builds
   // it from the packages it received. Rebuild it here for the same reason -
   // it needs every slot, and now they are all present.
-  const uniDir = path.join(BIN_DIR, '@julia-system-one__julia-serve-universal');
+  const uniDir = path.join(BIN_DIR, '@sys-one__julia-serve-universal');
   if (!fs.existsSync(uniDir)) {
     console.log('[publish] assembling the universal package from the staged binaries');
     try {
@@ -294,7 +294,7 @@ function cmdInspect() {
     for (const dir of dirs) {
       const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
       const problems = [];
-      if (!pkg.name?.startsWith('@julia-system-one/')) problems.push('not in the @julia-system-one scope');
+      if (!pkg.name?.startsWith('@sys-one/')) problems.push('not in the @sys-one scope');
       if (!pkg.version) problems.push('no version');
       const binDir = path.join(dir, 'bin');
       if (kind === 'binaries' && (!fs.existsSync(binDir) || fs.readdirSync(binDir).length === 0)) {
@@ -443,7 +443,7 @@ function main() {
   else if (cmd === 'publish') cmdPublish(args);
   else if (cmd === 'list') cmdListLocal();
   else {
-    console.log(`publish-all.js — publish the @julia-system-one packages from your machine
+    console.log(`publish-all.js — publish the @sys-one packages from your machine
 
   download --run <id>              fetch the packages built by GitHub Actions
   inspect                          check every staged package is publishable

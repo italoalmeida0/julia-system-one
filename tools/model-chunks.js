@@ -95,7 +95,7 @@ async function cmdBuild(args) {
   // Their bytes depend only on the checkpoint, so a new package version with
   // an unchanged model must not republish 235 MB of identical data.
   const modelVersion = args['model-version'] || readModelVersion();
-  const pkgPrefix = args.prefix || '@julia-system-one/julia-model-chunk';
+  const pkgPrefix = args.prefix || '@sys-one/julia-model-chunk';
 
   const stat = await fs.promises.stat(modelPath);
   const chunkCount = Math.ceil(stat.size / chunkBytes);

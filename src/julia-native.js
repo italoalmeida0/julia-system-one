@@ -58,10 +58,10 @@ export function shippedPlatformDir() {
  *
  * Search order:
  *   1. JULIA_SERVE_BIN (explicit override)
- *   2. the installed platform package  node_modules/@julia-system-one/julia-serve-<slot>/
+ *   2. the installed platform package  node_modules/@sys-one/julia-serve-<slot>/
  *      (this is how a normal `npm install julia-system-one` gets its binary -
  *      npm picked the matching package via os/cpu in optionalDependencies)
- *   3. the universal package  node_modules/@julia-system-one/julia-serve-universal/
+ *   3. the universal package  node_modules/@sys-one/julia-serve-universal/
  *   4. a local dev build  dist/bin/<slot>/  (repo checkout / CI)
  *
  * Inside a package the layout is bin/<slot>/<file>, and the slot for the
@@ -78,8 +78,8 @@ export function resolveBinaryOrNull() {
   for (const slot of slots) {
     // 2/3) installed packages. `require.resolve` style probing keeps this
     // working no matter how deep the install tree is (pnpm, workspaces, ...).
-    const pkgDir = findInstalledPackage(`@julia-system-one/julia-serve-${baseSlot(slot)}`);
-    const roots = [pkgDir, findInstalledPackage('@julia-system-one/julia-serve-universal')].filter(Boolean);
+    const pkgDir = findInstalledPackage(`@sys-one/julia-serve-${baseSlot(slot)}`);
+    const roots = [pkgDir, findInstalledPackage('@sys-one/julia-serve-universal')].filter(Boolean);
 
     for (const root of roots) {
       if (!root) continue;

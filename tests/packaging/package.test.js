@@ -99,7 +99,7 @@ test('the binaries and the model are optionalDependencies, not tarball payload',
   const opt = PKG.optionalDependencies || {};
   const binaryVersion = PKG.binaryVersion || PKG.version;
   for (const p of ['linux-x64', 'linux-arm64', 'win32-x64', 'win32-arm64', 'darwin-arm64', 'darwin-x64', 'universal']) {
-    assert.equal(opt[`@julia-system-one/julia-serve-${p}`], binaryVersion, `@julia-system-one/julia-serve-${p} must be pinned to binaryVersion (${binaryVersion})`);
+    assert.equal(opt[`@sys-one/julia-serve-${p}`], binaryVersion, `@sys-one/julia-serve-${p} must be pinned to binaryVersion (${binaryVersion})`);
   }
 
   // The chunks follow the MODEL version, not the package version: their bytes
@@ -109,7 +109,7 @@ test('the binaries and the model are optionalDependencies, not tarball payload',
   const modelVersion = manifest.modelVersion || manifest.version;
   assert.ok(modelVersion, 'the manifest must record the model version');
   for (let i = 0; i < manifest.chunkCount; i++) {
-    const name = `@julia-system-one/julia-model-chunk-${String(i).padStart(2, '0')}`;
+    const name = `@sys-one/julia-model-chunk-${String(i).padStart(2, '0')}`;
     assert.equal(opt[name], modelVersion, `${name} must be pinned to the model version (${modelVersion}), not the package version`);
   }
 
@@ -140,7 +140,7 @@ test('every declared platform package is buildable and well-formed', () => {
   assert.equal(res.status, 0, res.stderr);
 
   for (const [name, sel] of Object.entries(expected)) {
-    assert.ok(res.stdout.includes(`@julia-system-one/${name}`), `generator does not know about ${name}`);
+    assert.ok(res.stdout.includes(`@sys-one/${name}`), `generator does not know about ${name}`);
     if (!sel) continue;
     assert.ok(res.stdout.includes(`os=[${sel.os}] cpu=[${sel.cpu}]`),
       `${name} must declare os/cpu exactly as npm matches them`);

@@ -20,12 +20,12 @@ mkdir -p /verify && cd /verify
 npm init -y >/dev/null
 npm install "julia-system-one@$VERSION" --no-audit --no-fund
 
-echo "--- installed @julia-system-one packages ---"
-ls node_modules/@julia-system-one/ | sort
+echo "--- installed @sys-one packages ---"
+ls node_modules/@sys-one/ | sort
 
 # Exactly the musl package for this arch, and nothing else specific: the whole
 # point of the os/cpu split is that one machine gets one binary.
-SPECIFIC=$(ls node_modules/@julia-system-one/ | grep '^julia-serve-' | grep -v universal || true)
+SPECIFIC=$(ls node_modules/@sys-one/ | grep '^julia-serve-' | grep -v universal || true)
 echo "specific package: $SPECIFIC"
 if [ "$SPECIFIC" != "julia-serve-linux-$ARCH" ]; then
   echo "expected julia-serve-linux-$ARCH, got $SPECIFIC"
@@ -33,10 +33,10 @@ if [ "$SPECIFIC" != "julia-serve-linux-$ARCH" ]; then
 fi
 
 # The musl build ships as a self-extracting bundle (binary + libs in one file).
-BUNDLE="node_modules/@julia-system-one/julia-serve-linux-$ARCH/bin/linux-$ARCH-musl/julia-serve.bundle"
+BUNDLE="node_modules/@sys-one/julia-serve-linux-$ARCH/bin/linux-$ARCH-musl/julia-serve.bundle"
 if [ ! -f "$BUNDLE" ]; then
   echo "no musl bundle at $BUNDLE"
-  find node_modules/@julia-system-one -type f | head -20
+  find node_modules/@sys-one -type f | head -20
   exit 1
 fi
 chmod +x "$BUNDLE"

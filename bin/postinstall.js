@@ -3,7 +3,7 @@
  * postinstall — cheap, silent-ish and never fatal.
  *
  * Since 1.1.0 the native binary and the model arrive as dependencies
- * (@julia-system-one/julia-serve-* and @julia-system-one/julia-model-chunk-*), so there is
+ * (@sys-one/julia-serve-* and @sys-one/julia-model-chunk-*), so there is
  * nothing to download here. What still needs doing:
  *
  * 1. npm does not preserve the executable bit, so the binary inside the
@@ -26,7 +26,7 @@ const MODELS_DIR = path.join(PKG_ROOT, 'models');
 const QUIET = process.env.JULIA_SKIP_MODEL_DOWNLOAD === '1'
   || process.env.npm_config_ignore_scripts === 'true';
 
-/** Every node_modules dir that could hold our @julia-system-one packages. */
+/** Every node_modules dir that could hold our @sys-one packages. */
 function nodeModulesRoots() {
   const roots = [];
   let dir = __dirname;
@@ -44,7 +44,7 @@ function restoreExecBits() {
   if (process.platform === 'win32') return 0;
   let fixed = 0;
   for (const root of nodeModulesRoots()) {
-    const scope = path.join(root, '@julia-system-one');
+    const scope = path.join(root, '@sys-one');
     if (!fs.existsSync(scope)) continue;
     for (const name of fs.readdirSync(scope)) {
       if (!name.startsWith('julia-serve')) continue;
@@ -89,7 +89,7 @@ async function main() {
     }
   } else if (!QUIET && fixed === 0) {
     // most common case: nothing to say, but tell the user how it works once
-    console.log('[julia-system-one] ready. The model is assembled from the @julia-system-one/julia-model-chunk-* packages on first use.');
+    console.log('[julia-system-one] ready. The model is assembled from the @sys-one/julia-model-chunk-* packages on first use.');
   }
 }
 

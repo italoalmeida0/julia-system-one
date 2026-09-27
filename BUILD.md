@@ -131,7 +131,7 @@ gh workflow run build-packages.yml -f version=1.0.0
 ```
 
 The version is stamped into `package.json`, the lockfile, the manifest and
-every `@julia-system-one/*` pin before anything is built, so nothing can disagree.
+every `@sys-one/*` pin before anything is built, so nothing can disagree.
 
 Everything that is a developer concern rather than a build concern stays
 local, where it is faster and free:

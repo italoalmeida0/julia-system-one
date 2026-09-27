@@ -9,7 +9,7 @@
  * --offline  never touch the network (fails if the model cannot be resolved
  *            from local chunks/copy).
  * --github   allow the GitHub Release download. Needed in CI, where the
- *            @julia-system-one model chunk packages are not published yet: the
+ *            @sys-one model chunk packages are not published yet: the
  *            release asset is the only copy of the model available.
  */
 import path from 'node:path';

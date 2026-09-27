@@ -61,7 +61,7 @@ test('build: splits a model into chunk packages with per-chunk checksums', () =>
       assert.ok(fs.existsSync(path.join(pkgDir, 'package.json')), `chunk ${i} has a package.json`);
       assert.ok(fs.existsSync(path.join(pkgDir, 'chunk.bin')), `chunk ${i} has chunk.bin`);
       assert.equal(c.index, i);
-      assert.equal(c.package, `@julia-system-one/julia-model-chunk-${String(i).padStart(2, '0')}`);
+      assert.equal(c.package, `@sys-one/julia-model-chunk-${String(i).padStart(2, '0')}`);
       assert.equal(c.bytes, fs.statSync(path.join(pkgDir, 'chunk.bin')).size);
       total += c.bytes;
     }
@@ -208,8 +208,8 @@ test('assembleFromRegistry: a corrupted chunk from the registry is rejected', as
 });
 
 test('tarballUrl + extractTgz agree with what the registry serves', () => {
-  const url = tarballUrl('@julia-system-one/julia-model-chunk-03', '2.0.0');
-  assert.equal(url, 'https://registry.npmjs.org/@julia-system-one/julia-model-chunk-03/-/julia-model-chunk-03-2.0.0.tgz');
+  const url = tarballUrl('@sys-one/julia-model-chunk-03', '2.0.0');
+  assert.equal(url, 'https://registry.npmjs.org/@sys-one/julia-model-chunk-03/-/julia-model-chunk-03-2.0.0.tgz');
 
   const payload = Buffer.from('chunk-bytes');
   const tgz = zlib.gzipSync(makeTar([['package/chunk.bin', payload]]));

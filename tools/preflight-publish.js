@@ -21,13 +21,13 @@ const allowMissingDist = process.argv.includes('--allow-missing-dist');
 
 /** The platform packages the entry package must depend on. */
 export const REQUIRED_SERVE_PKGS = [
-  '@julia-system-one/julia-serve-darwin-arm64',
-  '@julia-system-one/julia-serve-darwin-x64',
-  '@julia-system-one/julia-serve-win32-x64',
-  '@julia-system-one/julia-serve-win32-arm64',
-  '@julia-system-one/julia-serve-linux-x64',
-  '@julia-system-one/julia-serve-linux-arm64',
-  '@julia-system-one/julia-serve-universal'
+  '@sys-one/julia-serve-darwin-arm64',
+  '@sys-one/julia-serve-darwin-x64',
+  '@sys-one/julia-serve-win32-x64',
+  '@sys-one/julia-serve-win32-arm64',
+  '@sys-one/julia-serve-linux-x64',
+  '@sys-one/julia-serve-linux-arm64',
+  '@sys-one/julia-serve-universal'
 ];
 
 /**
@@ -64,7 +64,7 @@ export function checkPackageVersions(pkg, root) {
   const modelVersion = manifest.modelVersion || manifest.version || '1.0.0';
 
   for (let i = 0; i < Number(manifest.chunkCount || 0); i++) {
-    const name = `@julia-system-one/julia-model-chunk-${String(i).padStart(2, '0')}`;
+    const name = `@sys-one/julia-model-chunk-${String(i).padStart(2, '0')}`;
     if (!opt[name]) {
       problems.push(`optionalDependencies must list ${name} (the model ships as chunk packages)`);
     } else if (opt[name] !== modelVersion) {

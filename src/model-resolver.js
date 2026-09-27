@@ -170,8 +170,8 @@ export function extractTgz(buf) {
 
 /** URL of a package tarball on an npm registry.
  * Scoped names keep their ``@scope/`` in the path and drop it from the
- * tarball filename: ``@julia-system-one/model-chunk-00`` ->
- * ``https://.../@julia-system-one/model-chunk-00/-/model-chunk-00-1.0.0.tgz``.
+ * tarball filename: ``@sys-one/model-chunk-00`` ->
+ * ``https://.../@sys-one/model-chunk-00/-/model-chunk-00-1.0.0.tgz``.
  */
 export function tarballUrl(pkgName, version, registry = DEFAULT_REGISTRY) {
   const base = pkgName.includes('/') ? pkgName.split('/')[1] : pkgName;
@@ -281,7 +281,7 @@ export function findChunksOnDisk(dir, manifest) {
   if (count ? direct.length === count : direct.length > 0) return direct;
 
   // 2) installed npm chunk packages: <pkgName>/chunk.bin, including scoped
-  //    ones (@julia-system-one/...), which npm installs under node_modules/@julia-system-one/...
+  //    ones (@sys-one/...), which npm installs under node_modules/@sys-one/...
   const inPkgs = [];
   for (let i = 0; i < (count ?? 512); i++) {
     const pkgName = manifest?.chunks?.[i]?.package || `julia-system-one-model-chunk-${pad(i)}`;

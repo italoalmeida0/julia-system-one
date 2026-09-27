@@ -62,8 +62,8 @@ jobs:
           mkdir -p verify && cd verify
           npm init -y >/dev/null
           npm install "julia-system-one@$VERSION" --no-audit --no-fund
-          echo "--- installed @julia-system-one packages ---"
-          ls node_modules/@julia-system-one/ | sort
+          echo "--- installed @sys-one packages ---"
+          ls node_modules/@sys-one/ | sort
 
       - name: Exactly the right platform package arrived
         shell: bash
@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           cd verify
-          SPECIFIC=$(ls node_modules/@julia-system-one/ | grep '^julia-serve-' | grep -v universal || true)
+          SPECIFIC=$(ls node_modules/@sys-one/ | grep '^julia-serve-' | grep -v universal || true)
           COUNT=$(echo "$SPECIFIC" | grep -c . || true)
           echo "specific platform packages: $SPECIFIC"
           [ "$COUNT" -eq 1 ] || { echo "expected exactly one, got $COUNT"; exit 1; }
@@ -83,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           cd verify
-          N=$(ls -d node_modules/@julia-system-one/julia-model-chunk-* | wc -l)
+          N=$(ls -d node_modules/@sys-one/julia-model-chunk-* | wc -l)
           echo "chunk packages: $N"
           [ "$N" -ge 13 ] || { echo "expected 13 chunks"; exit 1; }
 
@@ -95,7 +95,7 @@ jobs:
         run: |
           set -euo pipefail
           cd verify
-          B="node_modules/@julia-system-one/julia-serve-$SLOT/bin/$SLOT/$BIN"
+          B="node_modules/@sys-one/julia-serve-$SLOT/bin/$SLOT/$BIN"
           ls -la "$B"
           if [ "${{ runner.os }}" != "Windows" ]; then
             test -x "$B" || { echo "binary is not executable"; exit 1; }

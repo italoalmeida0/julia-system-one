@@ -7,7 +7,7 @@
  * npm refuses to select, a binary that is not executable, a chunk that does
  * not arrive, a loader that cannot find what it expects.
  *
- * It builds a throwaway project, serves the freshly built @julia-system-one packages
+ * It builds a throwaway project, serves the freshly built @sys-one packages
  * from a LOCAL registry (a tiny HTTP server speaking just enough npm registry
  * protocol, no network, nothing published), points npm at it, installs
  * julia-system-one, and then actually loads the library and runs inference -
@@ -220,7 +220,7 @@ async function checkProject(label, dir, platform, runtime, registryUrl) {
     console.log(`    ${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`);
   };
 
-  const nm = path.join(dir, 'node_modules', '@julia-system-one');
+  const nm = path.join(dir, 'node_modules', '@sys-one');
   const installed = fs.existsSync(nm) ? fs.readdirSync(nm) : [];
 
   // 1) the right platform package, and only it among the specific ones
@@ -379,7 +379,7 @@ async function main() {
         const native = target.os === process.platform && (target.cpu === process.arch || (process.arch === 'x64' && target.cpu === 'x64'));
         if (!native && runtime === 'node') {
           // wrong platform for this CPU: just check what npm selected
-          const nm = path.join(dir, 'node_modules', '@julia-system-one');
+          const nm = path.join(dir, 'node_modules', '@sys-one');
           const installed = fs.existsSync(nm) ? fs.readdirSync(nm) : [];
           const specific = Object.keys(PLATFORMS).map((k) => PLATFORMS[k].expect).filter((n) => installed.includes(n));
           const ok = specific.length === 1 && specific[0] === target.expect;

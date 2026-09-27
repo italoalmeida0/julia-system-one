@@ -16,13 +16,13 @@
  *     it: the glibc and musl builds of one Linux arch travel TOGETHER in a
  *     single package and the loader picks the right file at runtime.
  *
- *   @julia-system-one/julia-serve-darwin-arm64   os=darwin  cpu=arm64   (julia-serve)
- *   @julia-system-one/julia-serve-darwin-x64     os=darwin  cpu=x64     (julia-serve)
- *   @julia-system-one/julia-serve-win32-x64      os=win32   cpu=x64     (julia-serve.exe)
- *   @julia-system-one/julia-serve-win32-arm64    os=win32   cpu=arm64   (julia-serve.exe)
- *   @julia-system-one/julia-serve-linux-x64      os=linux   cpu=x64     (glibc + musl)
- *   @julia-system-one/julia-serve-linux-arm64    os=linux   cpu=arm64   (glibc + musl)
- *   @julia-system-one/julia-serve-universal      (no os/cpu)            (every binary)
+ *   @sys-one/julia-serve-darwin-arm64   os=darwin  cpu=arm64   (julia-serve)
+ *   @sys-one/julia-serve-darwin-x64     os=darwin  cpu=x64     (julia-serve)
+ *   @sys-one/julia-serve-win32-x64      os=win32   cpu=x64     (julia-serve.exe)
+ *   @sys-one/julia-serve-win32-arm64    os=win32   cpu=arm64   (julia-serve.exe)
+ *   @sys-one/julia-serve-linux-x64      os=linux   cpu=x64     (glibc + musl)
+ *   @sys-one/julia-serve-linux-arm64    os=linux   cpu=arm64   (glibc + musl)
+ *   @sys-one/julia-serve-universal      (no os/cpu)            (every binary)
  *
  * The universal package is the "cannot tell what this is" safety net: if a
  * platform matches none of the specific packages (odd libc, unknown arch,
@@ -42,7 +42,7 @@ const ROOT = path.resolve(__dirname, '..');
 const BIN_DIR = path.join(ROOT, 'dist', 'bin');
 const OUT_DIR = path.join(ROOT, 'dist', 'release', 'binaries');
 
-const SCOPE = '@julia-system-one';
+const SCOPE = '@sys-one';
 const REPO = {
   type: 'git',
   url: 'git+https://github.com/italoalmeida0/julia-system-one.git'
@@ -202,7 +202,7 @@ function copyIfExists(src, destDir) {
 /**
  * Where a slot's files are. Two sources are possible:
  *   - dist/bin/<slot>/   a local build (cargo output, make-bundle)
- *   - dist/release/binaries/@julia-system-one__julia-serve-<pkg>/bin/<slot>/
+ *   - dist/release/binaries/@sys-one__julia-serve-<pkg>/bin/<slot>/
  *     the same files already packaged, which is what CI's entry job holds:
  *     there the binaries arrive as artifacts, not in dist/bin.
  * Returns null when neither exists.

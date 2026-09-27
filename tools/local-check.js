@@ -15,7 +15,7 @@
  *   packaging       what `npm pack` actually ships
  *   integration     real model, real binary (exactly 10 questions)
  *   e2e             the HTTP/CLI protocol
- *   packages        build the @julia-system-one platform packages
+ *   packages        build the @sys-one platform packages
  *   install-rehearsal
  *                   spin up a LOCAL npm registry (fake, no network), install
  *                   julia-system-one together with the packages it would get
@@ -53,7 +53,7 @@ const STEPS = {
   },
   e2e: { label: 'e2e (HTTP + CLI protocol)', run: () => npm(['run', 'test:e2e']) },
   packages: {
-    label: 'build @julia-system-one platform packages',
+    label: 'build @sys-one platform packages',
     run: () => {
       npm(['run', 'pkgs:build']);
       return npm(['run', 'pkgs:pack']);

@@ -1,7 +1,7 @@
 /**
  * set-version.js — the rule that must not be broken by accident.
  *
- * The two kinds of @julia-system-one package are versioned by different things:
+ * The two kinds of @sys-one package are versioned by different things:
  *   binaries - compiled from this commit, so they follow the package version
  *   chunks   - cut from the checkpoint, so they follow the MODEL version
  *
@@ -34,10 +34,10 @@ function sandbox() {
   // values must not leak in
   main.binaryVersion = '1.1.0';
   main.optionalDependencies = {
-    '@julia-system-one/julia-serve-linux-x64': '1.1.0',
-    '@julia-system-one/julia-serve-universal': '1.1.0',
-    '@julia-system-one/julia-model-chunk-00': '1.1.0',
-    '@julia-system-one/julia-model-chunk-01': '1.1.0'
+    '@sys-one/julia-serve-linux-x64': '1.1.0',
+    '@sys-one/julia-serve-universal': '1.1.0',
+    '@sys-one/julia-model-chunk-00': '1.1.0',
+    '@sys-one/julia-model-chunk-01': '1.1.0'
   };
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(main, null, 2));
   fs.writeFileSync(path.join(dir, 'package-lock.json'), JSON.stringify({
@@ -48,7 +48,7 @@ function sandbox() {
   // the checkpoint's own version, deliberately different from the package's
   fs.writeFileSync(path.join(dir, 'models', 'model.manifest.json'), JSON.stringify({
     modelVersion: '1.0.0',
-    chunks: [{ index: 0, package: '@julia-system-one/julia-model-chunk-00', version: '1.0.0' }]
+    chunks: [{ index: 0, package: '@sys-one/julia-model-chunk-00', version: '1.0.0' }]
   }, null, 2));
 
   return dir;
@@ -67,12 +67,12 @@ test('set-version: each kind of package follows what it actually depends on', ()
     const main = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
 
     assert.equal(main.version, '1.2.0');
-    assert.equal(main.optionalDependencies['@julia-system-one/julia-serve-linux-x64'], '1.1.0',
+    assert.equal(main.optionalDependencies['@sys-one/julia-serve-linux-x64'], '1.1.0',
       'binaries follow binaryVersion (the Rust), not the package version');
-    assert.equal(main.optionalDependencies['@julia-system-one/julia-serve-universal'], '1.1.0');
-    assert.equal(main.optionalDependencies['@julia-system-one/julia-model-chunk-00'], '1.0.0',
+    assert.equal(main.optionalDependencies['@sys-one/julia-serve-universal'], '1.1.0');
+    assert.equal(main.optionalDependencies['@sys-one/julia-model-chunk-00'], '1.0.0',
       'chunks follow the checkpoint: an unchanged model keeps its version');
-    assert.equal(main.optionalDependencies['@julia-system-one/julia-model-chunk-01'], '1.0.0');
+    assert.equal(main.optionalDependencies['@sys-one/julia-model-chunk-01'], '1.0.0');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -87,9 +87,9 @@ test('set-version: bumping binaryVersion repins the binaries', () => {
 
     runSetVersion(dir, '1.3.0');
     const after = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-    assert.equal(after.optionalDependencies['@julia-system-one/julia-serve-linux-x64'], '1.2.0',
+    assert.equal(after.optionalDependencies['@sys-one/julia-serve-linux-x64'], '1.2.0',
       'a new Rust build moves the binaries to the new binaryVersion');
-    assert.equal(after.optionalDependencies['@julia-system-one/julia-model-chunk-00'], '1.0.0');
+    assert.equal(after.optionalDependencies['@sys-one/julia-model-chunk-00'], '1.0.0');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -142,22 +142,22 @@ test('preflight: chunks are checked against the model version, not the package',
     main.version = '1.2.0';
     main.binaryVersion = '1.2.0';
     main.optionalDependencies = {
-      '@julia-system-one/julia-serve-darwin-arm64': '1.2.0',
-      '@julia-system-one/julia-serve-darwin-x64': '1.2.0',
-      '@julia-system-one/julia-serve-win32-x64': '1.2.0',
-      '@julia-system-one/julia-serve-win32-arm64': '1.2.0',
-      '@julia-system-one/julia-serve-linux-x64': '1.2.0',
-      '@julia-system-one/julia-serve-linux-arm64': '1.2.0',
-      '@julia-system-one/julia-serve-universal': '1.2.0',
-      '@julia-system-one/julia-model-chunk-00': '1.0.0',
-      '@julia-system-one/julia-model-chunk-01': '1.0.0'
+      '@sys-one/julia-serve-darwin-arm64': '1.2.0',
+      '@sys-one/julia-serve-darwin-x64': '1.2.0',
+      '@sys-one/julia-serve-win32-x64': '1.2.0',
+      '@sys-one/julia-serve-win32-arm64': '1.2.0',
+      '@sys-one/julia-serve-linux-x64': '1.2.0',
+      '@sys-one/julia-serve-linux-arm64': '1.2.0',
+      '@sys-one/julia-serve-universal': '1.2.0',
+      '@sys-one/julia-model-chunk-00': '1.0.0',
+      '@sys-one/julia-model-chunk-01': '1.0.0'
     };
     // the sandbox manifest declares modelVersion 1.0.0 and 2 chunks
     fs.writeFileSync(path.join(dir, 'models', 'model.manifest.json'), JSON.stringify({
       modelVersion: '1.0.0', chunkCount: 2,
       chunks: [
-        { index: 0, package: '@julia-system-one/julia-model-chunk-00', version: '1.0.0' },
-        { index: 1, package: '@julia-system-one/julia-model-chunk-01', version: '1.0.0' }
+        { index: 0, package: '@sys-one/julia-model-chunk-00', version: '1.0.0' },
+        { index: 1, package: '@sys-one/julia-model-chunk-01', version: '1.0.0' }
       ]
     }, null, 2));
 
@@ -166,14 +166,14 @@ test('preflight: chunks are checked against the model version, not the package',
 
     // and the failure it used to produce must still be caught
     const wrong = structuredClone(main);
-    wrong.optionalDependencies['@julia-system-one/julia-model-chunk-00'] = '1.2.0';
+    wrong.optionalDependencies['@sys-one/julia-model-chunk-00'] = '1.2.0';
     const problems = checkPackageVersions(wrong, dir);
     assert.equal(problems.length, 1);
     assert.match(problems[0], /chunk-00 is pinned to 1\.2\.0, expected the model version 1\.0\.0/);
 
     // a binary at the wrong version is still an error
     const badBin = structuredClone(main);
-    badBin.optionalDependencies['@julia-system-one/julia-serve-linux-x64'] = '1.1.0';
+    badBin.optionalDependencies['@sys-one/julia-serve-linux-x64'] = '1.1.0';
     assert.match(checkPackageVersions(badBin, dir)[0], /binaryVersion is 1\.2\.0/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

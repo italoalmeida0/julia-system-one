@@ -73,7 +73,7 @@ function edit(file, mutate) {
 }
 
 // package.json: the version the published entry package will carry, and the
-// @julia-system-one packages it depends on - npm skips a missing optionalDependency
+// @sys-one packages it depends on - npm skips a missing optionalDependency
 // silently, so a stale pin here ships an install that finds no binary.
 //
 // The two kinds are pinned differently: binaries are compiled from this
@@ -85,7 +85,7 @@ edit('package.json', (j) => {
   const modelVersion = readModelVersion();
   const binaryVersion = j.binaryVersion || version;
   for (const name of Object.keys(j.optionalDependencies || {})) {
-    if (!name.startsWith('@julia-system-one/')) continue;
+    if (!name.startsWith('@sys-one/')) continue;
     if (name.includes('model-chunk')) j.optionalDependencies[name] = modelVersion;
     else j.optionalDependencies[name] = binaryVersion;
   }
