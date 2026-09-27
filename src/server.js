@@ -23,6 +23,39 @@ async function defaultModelDir() {
   return path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', 'models');
 }
 
+/**
+ * What is actually loaded: the encoder named by rl_agent_config.json and the
+ * sha256 of the model file. /health reports both, so a deployment can confirm
+ * which checkpoint it serves instead of trusting a hardcoded name.
+ *
+ * Read lazily and cached: the sha256 streams the file once, not per request.
+ */
+let _identity = null;
+async function modelIdentity(modelDir) {
+  if (_identity) return _identity;
+  const { fs, path, url } = await nodeBuiltins();
+  const dir = modelDir || path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', 'models');
+  let encoder = 'unknown';
+  let sha256 = 'unknown';
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'rl_agent_config.json'), 'utf8'));
+    if (cfg.encoder) encoder = cfg.encoder;
+  } catch { /* keep unknown */ }
+  try {
+    const { createHash } = await import('node:crypto');
+    const h = createHash('sha256');
+    await new Promise((resolve, reject) => {
+      const rs = fs.createReadStream(path.join(dir, 'model.onnx'));
+      rs.on('data', (c) => h.update(c));
+      rs.on('end', resolve);
+      rs.on('error', reject);
+    });
+    sha256 = h.digest('hex');
+  } catch { /* keep unknown */ }
+  _identity = { encoder, sha256 };
+  return _identity;
+}
+
 // Report the version we actually are, not a literal that goes stale: /health
 // is what a deployment checks. Read lazily, so nothing touches the filesystem
 // at module scope.
@@ -98,9 +131,12 @@ export async function serve(options = {}) {
     // Healthcheck endpoint
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
+      const identity = await modelIdentity(options.modelDir);
       res.end(JSON.stringify({
         status: 'ok',
         model: 'julia-1',
+        encoder: identity.encoder,
+        model_sha256: identity.sha256,
         version: await pkgVersion(),
         protocol: 'TypeSafe Jev /v1/systemone compatible'
       }));

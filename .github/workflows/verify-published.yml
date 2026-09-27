@@ -82,12 +82,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd verify
-          N=$(ls -d node_modules/@sys-one/julia-model-chunk-* | wc -l)
           # read the expected count from the manifest rather than hardcoding it:
           # this was 13 (the count for the checkpoint this runtime was first
           # built for) and every job failed against a model that ships 6.
+          # The path is resolved before cd, because the manifest is in the repo
+          # root and this step runs from verify/.
           WANT=$(node -p 'require("./models/model.manifest.json").chunkCount')
+          cd verify
+          N=$(ls -d node_modules/@sys-one/julia-model-chunk-* | wc -l)
           echo "chunk packages: $N (expected $WANT)"
           [ "$N" -eq "$WANT" ] || { echo "expected $WANT chunks, got $N"; exit 1; }
 
@@ -147,6 +149,41 @@ jobs:
           if (pass < cases.length - 1) process.exit(1);
           JS
           node check.mjs
+
+      - name: The model is the one this package ships
+        # /health reports the encoder and the sha256 of the model actually
+        # loaded. Comparing them against the manifest proves the install
+        # assembled the right checkpoint rather than serving something else.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verify
+          cat > identity.mjs <<'JS'
+          import { serve } from 'julia-system-one';
+          import fs from 'node:fs';
+
+          const manifest = JSON.parse(fs.readFileSync('node_modules/julia-system-one/models/model.manifest.json', 'utf8'));
+          const cfg = JSON.parse(fs.readFileSync('node_modules/julia-system-one/models/rl_agent_config.json', 'utf8'));
+
+          const srv = await serve({ port: 0, warmup: false });
+          const health = await (await fetch(srv.url + '/health')).json();
+          await srv.close();
+
+          console.log('encoder     :', health.encoder);
+          console.log('model sha256:', health.model_sha256);
+          console.log('expected    :', manifest.sha256);
+
+          if (health.encoder !== cfg.encoder) {
+            console.error(`encoder mismatch: served ${health.encoder}, config says ${cfg.encoder}`);
+            process.exit(1);
+          }
+          if (health.model_sha256 !== manifest.sha256) {
+            console.error('model sha256 mismatch: the assembled model is not the one the manifest describes');
+            process.exit(1);
+          }
+          console.log('identity verified');
+          JS
+          node identity.mjs
 
       - name: The binary came from node_modules (no silent wasm fallback)
         shell: bash
