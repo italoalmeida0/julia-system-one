@@ -1,7 +1,7 @@
 /**
  * Model-distribution integration test (requires models/model.onnx).
  *
- * Proves the flagship feature end to end: the 324 MB INT8 model survives
+ * Proves the flagship feature end to end: the 148 MB INT8 model survives
  * the split -> chunk packages -> reassemble pipeline byte-for-byte AND the
  * reassembled checkpoint actually loads and predicts.
  *

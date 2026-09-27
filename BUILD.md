@@ -121,13 +121,13 @@ developer's machine checks and publishes.
 
 | workflow | trigger | what it does |
 |---|---|---|
-| `build-packages.yml` | tag `v*`, manual | builds the binary for each platform on a native runner (plus the musl bundles in Alpine), cuts the model into 13 chunk packages, proves every binary answers 10 questions, and uploads the finished packages as artifacts |
+| `build-packages.yml` | tag `v*`, manual | builds the binary for each platform on a native runner (plus the musl bundles in Alpine), cuts the model into 6 chunk packages, proves every binary answers 10 questions, and uploads the finished packages as artifacts |
 | `verify-published.yml` | manual | installs a **published** version from the real registry on linux glibc/musl (x64 + arm64), Windows (x64 + arm64) and macOS (arm64 + x64), in Node and Bun, and runs a real inference; refuses to pass if the binary came from anywhere but `node_modules` |
 
 Build a specific version on purpose:
 
 ```bash
-gh workflow run build-packages.yml -f version=1.1.0-alpha.1
+gh workflow run build-packages.yml -f version=1.0.0
 ```
 
 The version is stamped into `package.json`, the lockfile, the manifest and
@@ -149,7 +149,7 @@ into a throwaway project, and asserts that npm selected exactly the expected
 platform package, that the 13 model chunks arrived, that the binary is
 executable, and that 10 questions come back with the right answers.
 
-## 8. Model asset distribution (the 324 MB problem)
+## 8. Model asset distribution (the 148 MB problem)
 
 npm rejects payloads over ~200 MB (HTTP 413), so `model.onnx` cannot ship
 inside the package. It is split into chunk packages that live on npm:
@@ -168,22 +168,22 @@ npm run model:test-registry# round-trip through the registry tarballs
 `node_modules` → npm registry tarballs → GitHub Releases, with sha256
 verification and atomic writes on every step.
 
-Chunk size is 24 MB (13 packages for this model): small enough for any
+Chunk size is 24 MB (6 packages for this model): small enough for any
 registry mirror/proxy, large enough to keep the request count low.
 Bump `--model-version` whenever the checkpoint changes — the chunk
 packages are immutable by content.
 
 ### Rebuilding the model from upstream
 
-`model.onnx` is not hand-made. It is the upstream
-[`convaiinnovations/julia-1`](https://huggingface.co/convaiinnovations/julia-1)
-checkpoint (mmBERT-base, 322M parameters) exported to ONNX and quantized to
-INT8. When upstream improves — a longer context, a retrained head, a new
+`model.onnx` is not hand-made. It is
+[`SupersonicLabs/Julia-1`](https://huggingface.co/SupersonicLabs/Julia-1)
+(144.3M parameters, a fine-tune of `jhu-clsp/mmBERT-small`) exported to ONNX
+and quantized to INT8. When upstream improves — a retrained head, a new
 checkpoint — `tools/export-model.py` produces the new file:
 
 ```bash
 gh workflow run update-model.yml \
-  -f model=convaiinnovations/julia-1 \
+  -f model=SupersonicLabs/Julia-1 \
   -f max-len=8192
 ```
 
@@ -192,7 +192,7 @@ dependency set — the package has none):
 
 ```bash
 pip install torch transformers onnx onnxruntime huggingface_hub julia
-npm run model:export -- --model convaiinnovations/julia-1 --max-len 8192
+npm run model:export -- --model SupersonicLabs/Julia-1 --max-len 8192
 ```
 
 The export writes `model.onnx`, the tokenizer files and a manifest with the

@@ -1,7 +1,7 @@
 /**
  * model-resolver.js — deterministic, layered acquisition of the Julia model.
  *
- * The INT8 checkpoint (model.onnx, ~324 MB) does NOT fit a single npm
+ * The INT8 checkpoint (model.onnx, ~148 MB) does NOT fit a single npm
  * package (registry rejects payloads over ~200 MB with HTTP 413), so it is
  * split into small "chunk" packages published on npm and reassembled here.
  *
@@ -39,7 +39,7 @@ export function defaultCacheDir() {
   return path.join(os.homedir(), '.cache', 'julia-system-one');
 }
 
-/** sha256 of a file, streamed (never loads 324 MB in RAM). */
+/** sha256 of a file, streamed (never loads the whole model in RAM). */
 export function sha256File(filePath) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256');

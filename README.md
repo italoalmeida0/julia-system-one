@@ -4,18 +4,18 @@
 [![Runtime](https://img.shields.io/badge/Runtime-Node.js%20%7C%20Bun%20%7C%20Browser-green.svg)]()
 [![TypeSafe Jev](https://img.shields.io/badge/Wire%20Protocol-TypeSafe%20Jev%20Compatible-orange.svg)]()
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)]()
-[![Built on Julia](https://img.shields.io/badge/Built%20on-Julia%20by%20Convai%20Innovations-8A2BE2.svg)](https://github.com/NandhaKishorM/julia)
+[![Model](https://img.shields.io/badge/Model-Julia--1%20by%20Supersonic%20Labs-8A2BE2.svg)](https://huggingface.co/SupersonicLabs/Julia-1)
 
-> **A fast, self-contained decision engine. Give it any text and a set of typed questions, and it answers them — offline, in milliseconds, in over 100 languages. Drop-in compatible with the TypeSafe Jev API (`POST /v1/systemone`).**
+> **A fast, self-contained decision engine. Give it any text and a set of typed questions, and it answers them — offline, in 52 locales. Drop-in compatible with the TypeSafe Jev API (`POST /v1/systemone`).**
 
 Runs entirely on your machine. No Python, no PyTorch, no API keys, no cloud
 calls at inference time. One `npm install` and it works.
 
-> **Built on [Julia](https://github.com/NandhaKishorM/julia)** by
-> [Convai Innovations](https://huggingface.co/convaiinnovations) — a
-> community project. The model is theirs; this package makes it run in
-> Node.js, Bun and the browser with no Python in the loop. See
-> [Credits](#-credits).
+> **The model is [Julia-1](https://huggingface.co/SupersonicLabs/Julia-1) by
+> [Supersonic Labs](https://huggingface.co/SupersonicLabs); the typed-question
+> format comes from [Laya](https://github.com/NandhaKishorM/laya).** This
+> package makes it run in Node.js, Bun and the browser with no Python in the
+> loop. See [Credits](#-credits).
 
 ---
 
@@ -23,12 +23,13 @@ calls at inference time. One `npm install` and it works.
 
 - 🔒 **100% Offline:** Nothing leaves your machine. Ideal for corporate
   intranets, edge servers and privacy-sensitive workflows.
-- ⚡ **Fast:** ~40 ms per question on a warm engine, measured on every platform
-  we ship for.
+- ⚡ **Small:** 144.3M parameters (a multilingual ModernBERT encoder,
+  quantized to INT8 — about 148 MB on disk).
 - 🔄 **TypeSafe Jev Compatible:** Drop-in `POST /v1/systemone`. Point an
   existing Jev client at it and it just works.
-- 🌍 **Multilingual:** Understands English, Portuguese, Spanish, German,
-  French, Chinese, Japanese and 100+ more, out of the box.
+- 🌍 **Multilingual:** 52 locales, measured — 71.5% macro accuracy on MASSIVE
+  scenario classification across all of them, 86.8% on English and 86.3% on
+  Portuguese.
 - 💻 **Node.js, Bun and Browsers:** Native binary on Node and Bun, WebAssembly
   in the browser.
 - 📦 **Zero Dependencies:** `dependencies` is empty. Nothing to compile,
@@ -177,9 +178,9 @@ Two honest notes:
   (Python + ONNX Runtime) and the wasm path does not. Prefer `native` wherever
   it is available; treat `wasm` as a way to run at all, not as a second
   opinion.
-- The wasm backend is roughly **40x slower** than the native binary — a
-  question takes seconds in a browser, not milliseconds. It exists so the
-  browser works at all.
+- The wasm backend is much slower than the native binary — a question takes
+  seconds in a browser, not milliseconds. It exists so the browser works at
+  all.
 - The environment detection, the HTTP fetching of the model/tokenizer/wasm
   bytes and the inline engine are covered by tests on Node. The one step that
   cannot be — importing the wasm glue over `http:` — is refused by Node's ESM
@@ -344,8 +345,9 @@ time. Switch with `--backend wasm` or `JULIA_BACKEND=wasm`.
 
 ## 📊 Performance
 
-Julia-1 is **144M parameters** — less than half of the mmBERT-base checkpoints
-— so it should be correspondingly faster on the same hardware.
+Julia-1 is a 144.3M-parameter ModernBERT encoder — less than half of the
+mmBERT-base checkpoints this runtime was first built for, so it should be
+correspondingly faster on the same hardware.
 
 **These numbers have not been measured yet.** The table below is a placeholder
 until the first benchmark run on each platform (`npm run bench`); publishing
@@ -373,7 +375,10 @@ JULIA_MAX_LEN=8192 npx julia-system-one --port 8080
 const julia = await Julia.load({ maxLen: 8192 });
 ```
 
-Measured on one machine (Windows arm64, `native` backend), by input length:
+**Not yet measured for this model.** The numbers below are from the
+multilingual checkpoint this runtime was first built for, and Julia-1 is a
+different encoder — treat them as the shape of the curve, not as this model's
+latency. Run `npm run bench` to measure it.
 
 | tokens | default (2048) | `maxLen: 8192` |
 | ---: | ---: | ---: |
@@ -383,11 +388,9 @@ Measured on one machine (Windows arm64, `native` backend), by input length:
 | 4,000 | 9.2 s *(truncated)* | 21.3 s |
 | 8,000 | 9.2 s *(truncated)* | 190 s |
 
-Two things worth knowing before you raise it:
-
-- **Accuracy degrades with length.** Upstream measured 16–18 of 20 requests
-  correct up to about 4,000 tokens, and 8–17 of 20 beyond that. Check your own
-  data — long-document accuracy is not something to assume.
+- **Accuracy degrades with length.** That measurement is from the Laya
+  project, not from Julia-1 — check your own data before relying on long
+  documents. Long-document accuracy is not something to assume.
 - **Cost grows steeply.** Past ~2,000 tokens the time climbs faster than the
   input does (attention is quadratic). 8,000 tokens is minutes, not seconds,
   on a CPU. If you routinely handle documents that long, truncate them
@@ -479,26 +482,28 @@ musl — and runs a real inference.
 
 ## 🙏 Credits
 
-**This package would not exist without
-[Julia](https://github.com/NandhaKishorM/julia).** It is a community project by
-[Convai Innovations](https://huggingface.co/convaiinnovations) — the model,
-the architecture, the training method and the wire protocol are all theirs.
-What this package adds is a way to run it where Python is not an option:
-Node.js, Bun and the browser.
+Two projects, and both deserve the credit.
+
+**[Supersonic Labs](https://huggingface.co/SupersonicLabs) made the model.**
+Julia-1 is theirs: the checkpoint, the decision head, the training, the
+evaluation. This package only runs it where Python is not an option.
+
+**[Laya](https://github.com/NandhaKishorM/laya) by
+[Convai Innovations](https://huggingface.co/convaiinnovations) defined the
+format.** The typed-question protocol, the sequence layout and the runtime
+this package is built on are theirs — Julia-1 answers the same questions in
+the same shape, which is why one runtime serves both.
 
 | | |
 | :--- | :--- |
-| **Upstream project** | [NandhaKishorM/julia](https://github.com/NandhaKishorM/julia) |
-| **Model** | [`SupersonicLabs/Julia-1`](https://huggingface.co/SupersonicLabs/Julia-1) (mmBERT-small, 144M params) |
+| **Model** | [`SupersonicLabs/Julia-1`](https://huggingface.co/SupersonicLabs/Julia-1) — 144.3M parameters, a fine-tune of [`jhu-clsp/mmBERT-small`](https://huggingface.co/jhu-clsp/mmBERT-small) |
 | **ONNX build** | [`SupersonicLabs/Julia-1-ONNX`](https://huggingface.co/SupersonicLabs/Julia-1-ONNX) |
-| **Other checkpoints** | [`convaiinnovations/julia`](https://huggingface.co/convaiinnovations/julia) (English), [`julia-typed-decisions`](https://huggingface.co/convaiinnovations/julia-typed-decisions) |
-| **Demo** | [Hugging Face Space](https://huggingface.co/spaces/convaiinnovations/julia-demo) |
-| **Method** | RLCD — reinforcement learning against strictly proper scoring rules |
-| **License** | Apache-2.0 (upstream and this package alike) |
+| **Decision protocol** | [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya) · [Convai Innovations](https://huggingface.co/convaiinnovations) |
+| **Encoder** | [jhu-clsp/mmBERT-small](https://huggingface.co/jhu-clsp/mmBERT-small) (JHU CLSP) |
+| **License** | Apache-2.0, for the model and for this package |
 
-If you find this useful, the credit belongs upstream — star
-[their repository](https://github.com/NandhaKishorM/julia) and consider
-[supporting the author](https://www.buymeacoffee.com/nandakishorm).
+If you find this useful, the credit belongs upstream — star the model and the
+project it borrowed its format from.
 
 ## 📄 License
 
@@ -506,5 +511,7 @@ If you find this useful, the credit belongs upstream — star
 
 - **This package:** [Italo Almeida](https://github.com/italoalmeida0) —
   [julia-system-one](https://github.com/italoalmeida0/julia-system-one)
-- **Model & upstream:** Convai Innovations —
-  [NandhaKishorM/julia](https://github.com/NandhaKishorM/julia)
+- **Model:** Supersonic Labs —
+  [SupersonicLabs/Julia-1](https://huggingface.co/SupersonicLabs/Julia-1)
+- **Decision format:** Convai Innovations —
+  [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya)
