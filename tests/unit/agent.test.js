@@ -352,3 +352,19 @@ test('wasm buckets: a short prompt runs short, and the shape count stays bounded
     else process.env.JULIA_WASM_PAD = prev;
   }
 });
+
+test('confidenceFromProbs is normalized entropy, matching the native binary', async () => {
+  // The wasm path returned (max(p) - 1/k) / (1 - 1/k) while the native binary
+  // returned normalized entropy - two different quantities on different
+  // scales, so the same answer came back with different confidences depending
+  // on the backend. This pins the JS to the native formula.
+  const { confidenceFromProbs } = await import('../../src/agent.js');
+  const close = (a, b) => Math.abs(a - b) < 1e-6;
+
+  assert.ok(close(confidenceFromProbs([0.9, 0.1], 2), 0.5310044), 'two options, 0.9/0.1');
+  assert.ok(close(confidenceFromProbs([0.7, 0.1, 0.1, 0.1], 4), 0.3216102), 'four options, one dominant');
+  assert.ok(close(confidenceFromProbs([0.4, 0.3, 0.3], 3), 0.0088405), 'three options, near-tie');
+  assert.equal(confidenceFromProbs([0.25, 0.25, 0.25, 0.25], 4), 0, 'a uniform distribution is zero confidence');
+  assert.equal(confidenceFromProbs([1], 1), 1, 'a single option is certain');
+  assert.ok(confidenceFromProbs([0.9, 0.1], 2) < 0.6, 'must not be (max - 1/k) / (1 - 1/k)');
+});
