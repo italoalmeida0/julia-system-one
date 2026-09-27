@@ -342,6 +342,32 @@ time. Switch with `--backend wasm` or `JULIA_BACKEND=wasm`.
 
 ---
 
+## 🎯 Accuracy
+
+This package runs the model; the accuracy is the model's. Julia-1's own model
+card reports, on the typed-decision suite:
+
+| question type | accuracy |
+| :--- | ---: |
+| choice | 71.33% (428/600) |
+| noul | 80.67% (484/600) |
+| score | 68.88% (551/800) |
+
+and 71.5% macro accuracy on MASSIVE scenario classification across 52 locales
+(86.8% English, 86.3% Portuguese).
+
+**On short, single-question prompts it is weaker than those figures suggest.**
+Running the upstream project's 12-case evaluation fixture through this package,
+Julia-1 answered 6 correctly; the checkpoint this runtime was first built for
+answered 9. The failures are concentrated in `score` (it returns values near
+the middle of the scale whatever the input) and in `noul` (it leans `true`).
+The same answers come back from the reference implementation in Python with
+ONNX Runtime, so this is the model, not the runtime.
+
+That is a small fixture, not a benchmark, and the model card's own numbers come
+from a much larger set. Treat it as a caution rather than a verdict: measure on
+your own data before relying on `score` or `noul`.
+
 ## 📊 Performance
 
 Measured on real hardware, on every platform we ship a binary for, with the
