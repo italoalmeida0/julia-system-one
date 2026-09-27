@@ -95,14 +95,7 @@
     "@sys-one/julia-model-chunk-02": "1.0.0",
     "@sys-one/julia-model-chunk-03": "1.0.0",
     "@sys-one/julia-model-chunk-04": "1.0.0",
-    "@sys-one/julia-model-chunk-05": "1.0.0",
-    "@sys-one/julia-model-chunk-06": "1.0.0",
-    "@sys-one/julia-model-chunk-07": "1.0.0",
-    "@sys-one/julia-model-chunk-08": "1.0.0",
-    "@sys-one/julia-model-chunk-09": "1.0.0",
-    "@sys-one/julia-model-chunk-10": "1.0.0",
-    "@sys-one/julia-model-chunk-11": "1.0.0",
-    "@sys-one/julia-model-chunk-12": "1.0.0"
+    "@sys-one/julia-model-chunk-05": "1.0.0"
   },
   "binaryVersion": "1.0.0",
   "modelVersion": "1.0.0"
