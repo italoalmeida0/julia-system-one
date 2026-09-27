@@ -48,7 +48,9 @@ function parseArgs(argv) {
 }
 
 function run(cmd, cmdArgs, opts = {}) {
-  const r = spawnSync(cmd, cmdArgs, { encoding: 'utf8', stdio: 'inherit', shell: process.platform === 'win32', ...opts });
+  // No shell: the node executable path contains a space on Windows
+  // ("C:\Program Files\nodejs\node.exe"), and cmd.exe splits on it.
+  const r = spawnSync(cmd, cmdArgs, { encoding: 'utf8', stdio: 'inherit', ...opts });
   return r.status ?? 1;
 }
 
