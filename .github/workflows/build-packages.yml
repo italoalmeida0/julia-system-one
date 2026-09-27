@@ -112,6 +112,11 @@ jobs:
           [[ "$OUT" == *.exe ]] && BIN="$BIN.exe"
           cp "$BIN" "$OUT"
           chmod +x "$OUT" 2>/dev/null || true
+          # win32-x64 links Microsoft's official ORT dynamically: the DLL must
+          # sit next to the exe or Windows fails with 0xC0000135 (DLL not found)
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            cp ort-libs/onnxruntime.dll "$(dirname "$OUT")/"
+          fi
           # the Intel binary links ORT dynamically: ship the dylib beside it
           if [ "${{ matrix.target }}" = "x86_64-apple-darwin" ]; then
             cp ort-libs/libonnxruntime*.dylib "$(dirname "$OUT")/"
